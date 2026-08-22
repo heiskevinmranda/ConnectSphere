@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("admins")
+}
+
+model Plan {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  slug        String   @unique
+  price       Int
+  duration    Int
+  description String?
+  icon        String   @default("wifi")
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slug])
+  @@index([isActive])
+  @@index([sortOrder])
+  @@map("plans")
+}
+
+model Voucher {
+  id             Int      @id @default(autoincrement())
+  code           String   @unique
+  price          Int
+  isUsed         Boolean  @default(false)
+  subscriptionId Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([isUsed, subscriptionId])
+  @@map("vouchers")
+}
+
+model Payment {
+  id                   Int      @id @default(autoincrement())
+  phoneNumber          String
+  amount               Int
+  plan                 String
+  status               String   @default("pending")
+  paymentReference     String   @unique
+  azampayTransactionId String?
+  azampayResponse      String?
+  subscriptionId       Int?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([phoneNumber])
+  @@index([status])
+  @@index([status, createdAt])
+  @@map("payments")
+}
+
+model Subscription {
+  id                   Int      @id @default(autoincrement())
+  phoneNumber          String
+  plan                 String
+  amount               Int
+  status               String   @default("active")
+  startDate            DateTime @default(now())
+  endDate              DateTime
+  routerActivated      Boolean  @default(false)
+  voucherCode          String?
+  paymentReference     String
+  azampayTransactionId String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([phoneNumber, status])
+  @@index([status, endDate])
+  @@index([plan])
+  @@map("subscriptions")
+}
+
+model RouterAccess {
+  id                 Int      @id @default(autoincrement())
+  phoneNumber        String   @unique
+  plan               String
+  macAddress         String?
+  imei               String?
+  routerMacAddress   String?
+  routerSerialNumber String?
+  routerImei         String?
+  isActive           Boolean  @default(false)
+  activatedAt        DateTime?
+  deactivatedAt      DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("router_access")
+}
