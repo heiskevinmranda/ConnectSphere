@@ -87,8 +87,6 @@ export function PlansSection({ onSelectPlan }: PlansSectionProps) {
             <div
               key={plan.id}
               style={{
-                width: "100%",
-                maxWidth: "220px",
                 background: "var(--color-bg-elevated)",
                 border: "1px solid var(--color-border)",
                 borderRadius: "var(--radius)",

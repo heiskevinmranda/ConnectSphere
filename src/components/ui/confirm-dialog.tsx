@@ -3,10 +3,7 @@
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from "@/components/ui/dialog"
 import { AlertTriangle, Trash2 } from "lucide-react"
 

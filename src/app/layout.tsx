@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Figtree } from "next/font/google";
 import "./globals.css";
-import { ToastProvider } from "@/modules/notifications/components/toast-provider";
+import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const figtree = Figtree({
@@ -25,9 +25,8 @@ export default function RootLayout({
     <html lang="en" className={figtree.variable}>
       <body className="antialiased font-sans">
         <TooltipProvider>
-          <ToastProvider>
-            {children}
-          </ToastProvider>
+          {children}
+          <Toaster />
         </TooltipProvider>
       </body>
     </html>

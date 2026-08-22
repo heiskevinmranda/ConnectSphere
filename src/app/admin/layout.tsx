@@ -7,7 +7,12 @@ import {
   BarChart3, Settings, Menu, X, LogOut, Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster, toast } from "@/components/ui/toaster";
+import {
+  adminFetch,
+  clearAdminSession,
+  getAdminToken,
+} from "@/lib/admin-client";
 
 const NAV_ITEMS = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -20,34 +25,74 @@ const NAV_ITEMS = [
   { href: "/admin/system", label: "System", icon: Settings },
 ];
 
+interface AdminAccount {
+  id: number;
+  email: string;
+  role: string;
+}
+
+type AuthState =
+  | { status: "checking" }
+  | { status: "authorized"; account: AdminAccount }
+  | { status: "unauthorized" };
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [authorized, setAuthorized] = useState(false);
+  const [auth, setAuth] = useState<AuthState>(() =>
+    typeof window !== "undefined" && getAdminToken()
+      ? { status: "checking" }
+      : { status: "unauthorized" }
+  );
 
   useEffect(() => {
-    const token = localStorage.getItem("adminToken");
-    if (!token) {
-      router.replace("/");
-    } else {
-      setAuthorized(true);
-    }
-  }, [router]);
-
-  useEffect(() => {
-    setSidebarOpen(false);
-  }, [pathname]);
+    if (auth.status !== "checking") return;
+    let cancelled = false;
+    adminFetch<AdminAccount>("/api/admin/me", { silentAuth: true })
+      .then((account) => {
+        if (!cancelled) setAuth({ status: "authorized", account });
+      })
+      .catch((error) => {
+        if (cancelled || (error instanceof Error && error.message === "Session expired")) {
+          return;
+        }
+        clearAdminSession();
+        setAuth({ status: "unauthorized" });
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("adminToken");
+    clearAdminSession();
+    toast.success("Signed out");
     router.replace("/");
   };
 
-  if (!authorized) {
+  if (auth.status === "checking") {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--color-bg)" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--color-bg)" }} role="status" aria-label="Checking session">
         <div style={{ width: "32px", height: "32px", border: "3px solid var(--color-primary)", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+      </div>
+    );
+  }
+
+  if (auth.status === "unauthorized") {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--color-bg)", padding: "16px" }}>
+        <div style={{ textAlign: "center", maxWidth: "360px" }}>
+          <Shield className="h-10 w-10" style={{ margin: "0 auto 16px", color: "var(--color-text-muted)" }} />
+          <h1 style={{ fontSize: "18px", fontWeight: 700, color: "var(--color-text)", marginBottom: "8px" }}>Sign in required</h1>
+          <p style={{ fontSize: "14px", color: "var(--color-text-muted)", marginBottom: "20px" }}>
+            Your session is invalid or has expired. Please sign in again to access the admin portal.
+          </p>
+          <Button onClick={() => router.replace("/")} style={{ background: "var(--color-primary)", color: "#fff" }}>
+            Back to Home
+          </Button>
+        </div>
       </div>
     );
   }
@@ -66,6 +111,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div style={{ fontSize: "10px", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Admin Portal</div>
           </div>
           <button
+            type="button"
+            aria-label="Close navigation menu"
             onClick={() => setSidebarOpen(false)}
             style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", padding: "4px", color: "var(--color-text-muted)", display: "none" }}
             className="mobile-close-btn"
@@ -73,9 +120,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <X className="h-5 w-5" />
           </button>
         </div>
+        <div style={{ marginTop: "12px", padding: "8px 10px", borderRadius: "8px", background: "var(--color-bg-subtle)" }}>
+          <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text)", overflowWrap: "anywhere" }}>{auth.account.email}</div>
+          <div style={{ fontSize: "11px", color: auth.account.role === "super_admin" ? "var(--color-warning)" : "var(--color-text-muted)", textTransform: "capitalize", fontWeight: 500 }}>
+            {auth.account.role.replace("_", " ")}
+          </div>
+        </div>
       </div>
 
-      <nav style={{ flex: 1, overflowY: "auto", padding: "12px 8px" }}>
+      <nav style={{ flex: 1, overflowY: "auto", padding: "12px 8px" }} aria-label="Admin sections">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const active = pathname.startsWith(item.href);
@@ -83,6 +136,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <a
               key={item.href}
               href={item.href}
+              aria-current={active ? "page" : undefined}
+              onClick={() => setSidebarOpen(false)}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -98,7 +153,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 transition: "all 150ms ease",
               }}
               onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = "var(--color-bg-subtle)"; }}
-              onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = "transparent"; }}
+              onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = active ? "var(--color-primary)" : "transparent"; }}
             >
               <Icon className="h-4 w-4" style={{ flexShrink: 0 }} />
               {item.label}
@@ -109,6 +164,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       <div style={{ padding: "12px 8px", borderTop: "1px solid var(--color-border)" }}>
         <button
+          type="button"
           onClick={handleLogout}
           style={{
             display: "flex",
@@ -147,6 +203,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       )}
 
       <aside
+        aria-label="Admin sidebar"
         style={{
           position: "fixed",
           top: 0,
@@ -194,6 +251,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             variant="ghost"
             size="icon"
             className="admin-hamburger"
+            aria-label="Open navigation menu"
             onClick={() => setSidebarOpen(true)}
             style={{ display: "none" }}
           >

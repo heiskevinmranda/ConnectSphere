@@ -87,20 +87,3 @@ export function formatRemainingTime(endDate: Date): string {
   return "Less than 1 hour";
 }
 
-export const PLAN_DURATIONS: Record<string, number> = {
-  starter: 1,
-  basic: 3,
-  standard: 7,
-  premium: 15,
-  elite: 30,
-};
-
-export const VALID_VOUCHER_PRICES = [1000, 2000, 5000, 10000, 20000] as const;
-
-export const PLAN_ICONS: Record<string, string> = {
-  starter: "wifi",
-  basic: "signal",
-  standard: "gauge",
-  premium: "rocket",
-  elite: "star",
-};

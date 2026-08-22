@@ -1,24 +1,103 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { cache } from "@/lib/cache";
+import { ServiceError } from "@/lib/errors";
+import type { Prisma } from "@prisma/client";
+
+export const VOUCHER_PRICE_TIERS = [1000, 2000, 5000, 10000, 20000] as const;
+export type VoucherPriceTier = (typeof VOUCHER_PRICE_TIERS)[number];
+
+export function isValidVoucherPrice(price: number): price is VoucherPriceTier {
+  return (VOUCHER_PRICE_TIERS as readonly number[]).includes(price);
+}
+
+/**
+ * Price tiers that can hold voucher stock: every price ever used by a
+ * plan plus the default tiers. Derived from the DB so dynamically
+ * created plans work end-to-end.
+ */
+export async function getVoucherPriceTiers(): Promise<number[]> {
+  const planPrices = await prisma.plan.findMany({
+    select: { price: true },
+    distinct: ["price"],
+  });
+  const set = new Set<number>([
+    ...VOUCHER_PRICE_TIERS,
+    ...planPrices.map((p) => p.price),
+  ]);
+  return Array.from(set).sort((a, b) => a - b);
+}
+
+function isAllowedPrice(price: number, tiers: number[]): boolean {
+  return tiers.includes(price);
+}
 
 export const vouchersService = {
+  /**
+   * Claims an available voucher for the given price inside the caller's
+   * transaction. Uses a guarded conditional update instead of
+   * find-then-update so two concurrent payments can never claim the
+   * same voucher.
+   *
+   * Returns the claimed voucher code, or null when stock is exhausted.
+   */
+  async claimVoucher(
+    tx: Prisma.TransactionClient,
+    price: number,
+    attempts = 5
+  ): Promise<{ code: string; id: number } | null> {
+    const candidates = await tx.voucher.findMany({
+      where: { isUsed: false, subscriptionId: null, price },
+      orderBy: { id: "asc" },
+      take: attempts,
+      select: { id: true },
+    });
+
+    for (const candidate of candidates) {
+      const claimed = await tx.voucher.updateMany({
+        where: {
+          id: candidate.id,
+          isUsed: false,
+          subscriptionId: null,
+        },
+        data: { isUsed: true },
+      });
+      if (claimed.count === 1) {
+        const voucher = await tx.voucher.findUniqueOrThrow({
+          where: { id: candidate.id },
+          select: { id: true, code: true },
+        });
+        return voucher;
+      }
+    }
+    return null;
+  },
+
   async upload(
     vouchers: Array<string | { code: string; price: number }>
-  ): Promise<{ insertedCount: number; message: string }> {
+  ): Promise<{ insertedCount: number; skippedCount: number; message: string }> {
+    const tiers = await getVoucherPriceTiers();
+
+    const invalidPrices = vouchers.filter(
+      (item) => typeof item === "object" && !isAllowedPrice(item.price, tiers)
+    );
+    if (invalidPrices.length > 0) {
+      throw new ServiceError(
+        `Invalid price tier. Allowed prices (TSh): ${tiers.join(", ")}`,
+        400
+      );
+    }
+
     const validVouchers = vouchers.filter((item) => {
       if (typeof item === "string") return /^\d{10}$/.test(item);
       if (typeof item === "object" && item.code && item.price) {
-        return (
-          /^\d{10}$/.test(item.code) &&
-          [1000, 2000, 5000, 10000, 20000].includes(item.price)
-        );
+        return /^\d{10}$/.test(item.code) && isAllowedPrice(item.price, tiers);
       }
       return false;
     });
 
     if (validVouchers.length === 0) {
-      throw new Error("No valid voucher codes found");
+      throw new ServiceError("No valid voucher codes found", 400);
     }
 
     const codes = validVouchers.map((item) =>
@@ -27,6 +106,7 @@ export const vouchersService = {
 
     const existingVouchers = await prisma.voucher.findMany({
       where: { code: { in: codes } },
+      select: { code: true },
     });
     const existingCodes = new Set(existingVouchers.map((v) => v.code));
 
@@ -36,7 +116,7 @@ export const vouchersService = {
     });
 
     if (newVouchers.length === 0) {
-      throw new Error("All voucher codes already exist");
+      throw new ServiceError("All voucher codes already exist", 409);
     }
 
     let insertedCount = 0;
@@ -47,18 +127,18 @@ export const vouchersService = {
       const result = await prisma.voucher.createMany({
         data: batch.map((item) => ({
           code: typeof item === "string" ? item : item.code,
-          price: typeof item === "string" ? 1000 : item.price,
+          price: typeof item === "string" ? tiers[0] : item.price,
           isUsed: false,
         })),
       });
       insertedCount += result.count;
     }
 
-    cache.delete("dashboard-stats");
-    cache.delete("voucher-analytics");
+    invalidateVoucherCaches();
 
     return {
       insertedCount,
+      skippedCount: vouchers.length - insertedCount,
       message: `Successfully uploaded ${insertedCount} new vouchers`,
     };
   },
@@ -67,28 +147,35 @@ export const vouchersService = {
     count: number,
     price: number
   ): Promise<{ generated: number; message: string }> {
+    const tiers = await getVoucherPriceTiers();
+    if (!isAllowedPrice(price, tiers)) {
+      throw new ServiceError(
+        `Invalid price tier. Allowed prices (TSh): ${tiers.join(", ")}`,
+        400
+      );
+    }
+
     const BATCH_SIZE = 500;
     let totalCreated = 0;
 
     for (let i = 0; i < count; i += BATCH_SIZE) {
       const batchSize = Math.min(BATCH_SIZE, count - i);
-      const vouchers = Array.from({ length: batchSize }, () => ({
-        code: crypto
-          .randomBytes(5)
-          .toString("hex")
-          .toUpperCase()
-          .substring(0, 10),
-        price,
-        isUsed: false,
-      }));
-
+      // 10-digit numeric codes, matching the upload format exactly.
+      const codes = new Set<string>();
+      while (codes.size < batchSize) {
+        codes.add(generateVoucherCode());
+      }
       const result = await prisma.voucher.createMany({
-        data: vouchers,
+        data: Array.from(codes, (code) => ({
+          code,
+          price,
+          isUsed: false,
+        })),
       });
       totalCreated += result.count;
     }
 
-    cache.delete("dashboard-stats");
+    invalidateVoucherCaches();
 
     return {
       generated: totalCreated,
@@ -96,10 +183,99 @@ export const vouchersService = {
     };
   },
 
-  async list() {
+  async list(params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    price?: number;
+    search?: string;
+  }) {
+    const { page = 1, limit = 20, status, price, search } = params;
+
+    const where: Record<string, unknown> = {};
+    if (status === "available") {
+      where.isUsed = false;
+      where.subscriptionId = null;
+    } else if (status === "used") {
+      where.isUsed = true;
+    }
+    if (price !== undefined) where.price = price;
+    if (search) where.code = { contains: search };
+
+    const [total, vouchers] = await Promise.all([
+      prisma.voucher.count({ where }),
+      prisma.voucher.findMany({
+        where,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: limit,
+        skip: (page - 1) * limit,
+      }),
+    ]);
+
+    return {
+      data: vouchers,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+    };
+  },
+
+  /** Deletes an unused voucher. Used vouchers are retained for audit history. */
+  async deleteIfUnused(id: number): Promise<boolean> {
+    const result = await prisma.voucher.deleteMany({
+      where: { id, isUsed: false, subscriptionId: null },
+    });
+    if (result.count > 0) {
+      invalidateVoucherCaches();
+      return true;
+    }
+    return false;
+  },
+
+  /** Exports all vouchers matching filters as plain rows for CSV generation. */
+  async exportRows(params: { status?: string; price?: number }) {
+    const where: Record<string, unknown> = {};
+    if (params.status === "available") {
+      where.isUsed = false;
+      where.subscriptionId = null;
+    } else if (params.status === "used") {
+      where.isUsed = true;
+    }
+    if (params.price !== undefined) where.price = params.price;
+
     return prisma.voucher.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 100,
+      where,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 50000,
+      select: {
+        code: true,
+        price: true,
+        isUsed: true,
+        subscriptionId: true,
+        createdAt: true,
+      },
     });
   },
 };
+
+function generateVoucherCode(): string {
+  return Array.from(crypto.randomBytes(10), (b) => (b % 10).toString()).join(
+    ""
+  );
+}
+
+/** Cache keys derived from voucher state must be invalidated together. */
+function invalidateVoucherCaches() {
+  for (const key of cache.keys()) {
+    if (
+      key.startsWith("voucher-availability") ||
+      key.startsWith("voucher-analytics") ||
+      key === "dashboard-stats"
+    ) {
+      cache.delete(key);
+    }
+  }
+}

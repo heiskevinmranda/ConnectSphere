@@ -10,8 +10,11 @@ model Admin {
   id        Int      @id @default(autoincrement())
   email     String   @unique
   password  String
+  role      String   @default("admin") // "admin" | "super_admin"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  auditLogs AuditLog[]
 
   @@map("admins")
 }
@@ -36,72 +39,101 @@ model Plan {
 }
 
 model Voucher {
-  id             Int      @id @default(autoincrement())
-  code           String   @unique
+  id             Int           @id @default(autoincrement())
+  code           String        @unique
   price          Int
-  isUsed         Boolean  @default(false)
+  isUsed         Boolean       @default(false)
   subscriptionId Int?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   @@index([isUsed, subscriptionId])
+  @@index([price, isUsed])
   @@map("vouchers")
 }
 
 model Payment {
-  id                   Int      @id @default(autoincrement())
+  id                   Int           @id @default(autoincrement())
   phoneNumber          String
   amount               Int
   plan                 String
-  status               String   @default("pending")
-  paymentReference     String   @unique
+  status               String        @default("pending")
+  paymentReference     String        @unique
   azampayTransactionId String?
   azampayResponse      String?
   subscriptionId       Int?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  subscription         Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
   @@index([phoneNumber])
   @@index([status])
   @@index([status, createdAt])
+  @@index([subscriptionId])
   @@map("payments")
 }
 
 model Subscription {
-  id                   Int      @id @default(autoincrement())
+  id                   Int       @id @default(autoincrement())
   phoneNumber          String
   plan                 String
   amount               Int
-  status               String   @default("active")
-  startDate            DateTime @default(now())
+  status               String    @default("active")
+  startDate            DateTime  @default(now())
   endDate              DateTime
-  routerActivated      Boolean  @default(false)
+  routerActivated      Boolean   @default(false)
   voucherCode          String?
   paymentReference     String
   azampayTransactionId String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  vouchers Voucher[]
+  payments Payment[]
 
   @@index([phoneNumber, status])
   @@index([status, endDate])
   @@index([plan])
+  @@index([createdAt])
   @@map("subscriptions")
 }
 
 model RouterAccess {
-  id                 Int      @id @default(autoincrement())
-  phoneNumber        String   @unique
+  id                 Int       @id @default(autoincrement())
+  phoneNumber        String    @unique
   plan               String
   macAddress         String?
   imei               String?
   routerMacAddress   String?
   routerSerialNumber String?
   routerImei         String?
-  isActive           Boolean  @default(false)
+  isActive           Boolean   @default(false)
   activatedAt        DateTime?
   deactivatedAt      DateTime?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
+  @@index([isActive])
   @@map("router_access")
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  actor     String // admin email, "system", or phone number
+  actorType String   @default("admin") // "admin" | "system" | "customer"
+  action    String // e.g. "admin.login", "plan.create", "payment.completed"
+  target    String? // identifier of the affected resource
+  details   String? // JSON-encoded context
+  ip        String?
+  status    String   @default("success") // "success" | "failure"
+  createdAt DateTime @default(now())
+
+  adminId Int?
+  admin   Admin? @relation(fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([action])
+  @@index([actor])
+  @@map("audit_logs")
 }

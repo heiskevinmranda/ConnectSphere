@@ -1,4 +1,3 @@
-import { prisma } from "@/lib/prisma";
 import { MOCK_ROUTERS } from "../mock/routers.data";
 import { MOCK_ACCESS_POINTS } from "../mock/access-points.data";
 import { getMockAlerts } from "../mock/alerts.data";

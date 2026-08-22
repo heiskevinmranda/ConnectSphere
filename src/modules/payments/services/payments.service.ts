@@ -1,10 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { cache } from "@/lib/cache";
-import { PLAN_DURATIONS } from "@/lib/utils";
+import { recordAudit } from "@/lib/audit";
+import { formatRemainingTime } from "@/lib/utils";
 import { azampayService } from "./azampay.service";
 import { routerAccessService } from "@/modules/network/services/router-access.service";
+import { vouchersService } from "@/modules/vouchers/services/vouchers.service";
 import type { VoucherAvailability } from "../types/payments.types";
-import type { Prisma } from "@prisma/client";
+
+const PENDING_PAYMENT_TTL_MS = 30 * 60 * 1000; // pending payments expire after 30 min
 
 export const paymentsService = {
   async checkVoucherAvailability(
@@ -62,25 +65,39 @@ export const paymentsService = {
     );
   },
 
-  async initiatePayment(phoneNumber: string, plan: string, amount: number) {
+  /**
+   * Initiates a payment for a plan. The amount and duration are always
+   * derived from the Plan table server-side; client input only selects
+   * the plan.
+   */
+  async initiatePayment(phoneNumber: string, planSlug: string) {
+    const plan = await prisma.plan.findUnique({ where: { slug: planSlug } });
+    if (!plan || !plan.isActive) {
+      return {
+        success: false as const,
+        code: "PLAN_NOT_FOUND" as const,
+        message: "The selected plan is not available.",
+      };
+    }
+
     const existingSubscription = await prisma.subscription.findFirst({
       where: {
         phoneNumber,
         status: "active",
         endDate: { gt: new Date() },
       },
+      orderBy: { endDate: "desc" },
     });
 
     if (existingSubscription) {
-      const remainingTime = getRemainingTime(existingSubscription.endDate);
       return {
-        success: false,
-        hasActiveSubscription: true,
-        message: `You already have an active ${existingSubscription.plan} plan with voucher code: ${existingSubscription.voucherCode}. Your subscription has ${remainingTime} remaining.`,
+        success: false as const,
+        code: "ACTIVE_SUBSCRIPTION" as const,
+        message: `You already have an active ${existingSubscription.plan} plan with voucher code: ${existingSubscription.voucherCode}. Your subscription has ${formatRemainingTime(existingSubscription.endDate)} remaining.`,
         existingSubscription: {
           plan: existingSubscription.plan,
           endDate: existingSubscription.endDate,
-          remainingTime,
+          remainingTime: formatRemainingTime(existingSubscription.endDate),
           voucherCode: existingSubscription.voucherCode,
           amount: existingSubscription.amount,
           status: existingSubscription.status,
@@ -89,19 +106,37 @@ export const paymentsService = {
       };
     }
 
+    // Refuse early when there is no voucher stock for this price tier so
+    // customers are never charged for a plan we cannot fulfil.
+    const availability = await paymentsService.checkVoucherAvailability(plan.price);
+    if (!availability.isAvailable) {
+      return {
+        success: false as const,
+        code: "OUT_OF_STOCK" as const,
+        message: `We are temporarily out of voucher codes for the ${plan.name} plan. Please try again shortly.`,
+      };
+    }
+
+    // Expire stale pending payments, then look for one still worth reusing.
+    await prisma.payment.updateMany({
+      where: {
+        phoneNumber,
+        status: "pending",
+        createdAt: { lt: new Date(Date.now() - PENDING_PAYMENT_TTL_MS) },
+      },
+      data: { status: "failed" },
+    });
+
     const existingPayment = await prisma.payment.findFirst({
-      where: { phoneNumber, status: "pending" },
+      where: { phoneNumber, status: "pending", plan: plan.slug },
       orderBy: { createdAt: "desc" },
     });
 
     if (existingPayment) {
-      const minutesOld = Math.floor(
-        (Date.now() - new Date(existingPayment.createdAt).getTime()) /
-          (1000 * 60)
-      );
       return {
-        success: true,
-        message: `You have a pending payment initiated ${minutesOld} minutes ago.`,
+        success: true as const,
+        reused: true as const,
+        message: "You already have a payment in progress for this plan.",
         data: {
           paymentReference: existingPayment.paymentReference,
           amount: existingPayment.amount,
@@ -112,11 +147,17 @@ export const paymentsService = {
       };
     }
 
+    // A pending payment for a *different* plan is superseded by this one.
+    await prisma.payment.updateMany({
+      where: { phoneNumber, status: "pending", plan: { not: plan.slug } },
+      data: { status: "failed" },
+    });
+
     const payment = await prisma.payment.create({
       data: {
         phoneNumber,
-        plan,
-        amount,
+        plan: plan.slug,
+        amount: plan.price,
         paymentReference: azampayService.generateReference(),
       },
     });
@@ -124,8 +165,8 @@ export const paymentsService = {
     try {
       const azampayResponse = await azampayService.initiatePayment({
         phoneNumber,
-        plan,
-        amount,
+        plan: plan.name,
+        amount: plan.price,
       });
 
       await prisma.payment.update({
@@ -137,12 +178,22 @@ export const paymentsService = {
       });
 
       return {
-        success: true,
+        success: true as const,
         message: "Payment initiated successfully",
-        paymentReference: payment.paymentReference,
-        transactionId: azampayResponse.transactionId,
+        data: {
+          paymentReference: payment.paymentReference,
+          transactionId: azampayResponse.transactionId,
+          simulationMode: false,
+        },
       };
-    } catch {
+    } catch (error) {
+      // AzamPay unreachable or not configured: fall back to simulation so
+      // the flow remains testable. Simulation is only completable in dev.
+      console.warn(
+        "[payments] AzamPay unavailable, using simulation mode:",
+        error instanceof Error ? error.message : error
+      );
+
       await prisma.payment.update({
         where: { id: payment.id },
         data: {
@@ -152,25 +203,30 @@ export const paymentsService = {
       });
 
       return {
-        success: true,
+        success: true as const,
         message: "Payment initiated successfully (simulation mode)",
-        paymentReference: payment.paymentReference,
-        simulationMode: true,
-        transactionId: `SIM_${payment.paymentReference}`,
+        data: {
+          paymentReference: payment.paymentReference,
+          simulationMode: true,
+        },
       };
     }
   },
 
   async checkPaymentStatus(reference: string) {
-    const payment = await prisma.payment.findUnique({
+    let payment = await prisma.payment.findUnique({
       where: { paymentReference: reference },
     });
 
     if (!payment) {
-      return { success: false, message: "Payment reference not found." };
+      return { success: false as const, message: "Payment reference not found." };
     }
 
-    if (payment.status === "pending" && payment.azampayTransactionId) {
+    if (
+      payment.status === "pending" &&
+      payment.azampayTransactionId &&
+      !payment.azampayTransactionId.startsWith("SIM_")
+    ) {
       try {
         const azampayStatus = await azampayService.checkPaymentStatus(
           payment.azampayTransactionId
@@ -178,41 +234,43 @@ export const paymentsService = {
         if (azampayStatus.success && azampayStatus.status === "SUCCESSFUL") {
           await processSuccessfulPayment(payment.id);
         } else if (azampayStatus.status === "FAILED") {
-          await prisma.payment.update({
-            where: { id: payment.id },
-            data: { status: "failed" },
-          });
+          await markPaymentFailed(payment.id, "provider_reported_failed");
         }
-      } catch {
-        if (process.env.NODE_ENV === "development") {
-          const age = Date.now() - new Date(payment.createdAt).getTime();
-          if (age > 30000 && payment.status === "pending") {
-            await processSuccessfulPayment(payment.id);
-          }
-        }
+      } catch (error) {
+        console.warn(
+          "[payments] provider status check failed:",
+          error instanceof Error ? error.message : error
+        );
       }
+    } else if (
+      payment.status === "pending" &&
+      Date.now() - new Date(payment.createdAt).getTime() > PENDING_PAYMENT_TTL_MS
+    ) {
+      await markPaymentFailed(payment.id, "expired");
     }
 
-    const updated = await prisma.payment.findUnique({
+    payment = await prisma.payment.findUnique({
       where: { id: payment.id },
     });
-
-    let subscription = null;
-    if (updated?.subscriptionId) {
-      subscription = await prisma.subscription.findUnique({
-        where: { id: updated.subscriptionId },
-      });
+    if (!payment) {
+      return { success: false as const, message: "Payment reference not found." };
     }
 
+    const subscription = payment.subscriptionId
+      ? await prisma.subscription.findUnique({
+          where: { id: payment.subscriptionId },
+        })
+      : null;
+
     return {
-      success: true,
+      success: true as const,
       payment: {
-        reference: updated!.paymentReference,
-        status: updated!.status,
-        amount: updated!.amount,
-        plan: updated!.plan,
-        phoneNumber: updated!.phoneNumber,
-        createdAt: updated!.createdAt,
+        reference: payment.paymentReference,
+        status: payment.status,
+        amount: payment.amount,
+        plan: payment.plan,
+        phoneNumber: payment.phoneNumber,
+        createdAt: payment.createdAt,
       },
       subscription: subscription
         ? {
@@ -226,88 +284,136 @@ export const paymentsService = {
           }
         : undefined,
       message:
-        updated!.status === "completed"
+        payment.status === "completed"
           ? "Payment completed successfully! Your internet subscription is now active."
           : undefined,
     };
   },
+
+  /** Marks a payment completed and provisions the subscription. Idempotent. */
+  async completePendingPayment(paymentId: number): Promise<boolean> {
+    return processSuccessfulPayment(paymentId);
+  },
 };
 
-async function processSuccessfulPayment(paymentId: number) {
+async function processSuccessfulPayment(paymentId: number): Promise<boolean> {
   const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
-  if (!payment || payment.status !== "pending") return;
+  if (!payment || payment.status !== "pending") return false;
 
-  const planDuration = PLAN_DURATIONS[payment.plan];
-  if (!planDuration) throw new Error(`Invalid plan: ${payment.plan}`);
-
-  await prisma.$transaction(async (tx) => {
-    await tx.payment.update({
-      where: { id: payment.id },
-      data: { status: "completed" },
-    });
-
-    const endDate = new Date();
-    endDate.setDate(endDate.getDate() + planDuration);
-
-    const voucher = await tx.voucher.findFirst({
-      where: {
-        isUsed: false,
-        subscriptionId: null,
-        price: payment.amount,
-      },
-      orderBy: { id: "asc" },
-    });
-
-    if (!voucher) {
-      throw new Error("No voucher codes available");
-    }
-
-    const subscription = await tx.subscription.create({
-      data: {
-        phoneNumber: payment.phoneNumber,
-        plan: payment.plan,
-        amount: payment.amount,
-        startDate: new Date(),
-        endDate,
-        paymentReference: payment.paymentReference,
-        azampayTransactionId: payment.azampayTransactionId,
-        status: "active",
-        routerActivated: false,
-        voucherCode: voucher.code,
-      },
-    });
-
-    await tx.voucher.update({
-      where: { id: voucher.id },
-      data: { isUsed: true, subscriptionId: subscription.id },
-    });
-
-    await tx.payment.update({
-      where: { id: payment.id },
-      data: { subscriptionId: subscription.id },
-    });
-  });
-
-  cache.delete("voucher-availability");
-  cache.delete("dashboard-stats");
-  if (payment.amount) {
-    cache.delete(`voucher-availability-${payment.amount}`);
-  }
+  const plan = await prisma.plan.findUnique({ where: { slug: payment.plan } });
+  if (!plan) throw new Error(`Unknown plan: ${payment.plan}`);
 
   try {
-    await routerAccessService.activateUser(payment.phoneNumber, payment.plan);
-  } catch {
-    // Router activation is non-critical
+    await prisma.$transaction(async (tx) => {
+      const claimedVoucher = await vouchersService.claimVoucher(
+        tx,
+        payment!.amount
+      );
+      if (!claimedVoucher) {
+        throw new Error("NO_VOUCHER_STOCK");
+      }
+
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + plan.duration);
+
+      const subscription = await tx.subscription.create({
+        data: {
+          phoneNumber: payment!.phoneNumber,
+          plan: payment!.plan,
+          amount: payment!.amount,
+          startDate: new Date(),
+          endDate,
+          paymentReference: payment!.paymentReference,
+          azampayTransactionId: payment!.azampayTransactionId,
+          status: "active",
+          routerActivated: false,
+          voucherCode: claimedVoucher.code,
+        },
+      });
+
+      await tx.voucher.update({
+        where: { id: claimedVoucher.id },
+        data: { subscriptionId: subscription.id },
+      });
+
+      await tx.payment.update({
+        where: { id: payment!.id },
+        data: { status: "completed", subscriptionId: subscription.id },
+      });
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "NO_VOUCHER_STOCK") {
+      await recordAudit({
+        actor: "system",
+        actorType: "system",
+        action: "payment.completed_no_stock",
+        target: payment.paymentReference,
+        details: { paymentId: payment.id, plan: payment.plan, amount: payment.amount },
+        status: "failure",
+      });
+    }
+    throw error;
+  }
+
+  invalidatePaymentCaches();
+
+  await recordAudit({
+    actor: payment.phoneNumber,
+    actorType: "customer",
+    action: "payment.completed",
+    target: payment.paymentReference,
+    details: {
+      paymentId: payment.id,
+      plan: payment.plan,
+      amount: payment.amount,
+    },
+  });
+
+  try {
+    const activation = await routerAccessService.activateUser(
+      payment.phoneNumber,
+      payment.plan
+    );
+    if (activation.success) {
+      await prisma.subscription.updateMany({
+        where: { paymentReference: payment.paymentReference },
+        data: { routerActivated: true },
+      });
+    }
+  } catch (error) {
+    console.error(
+      "[payments] router activation failed (non-critical):",
+      error instanceof Error ? error.message : error
+    );
+  }
+
+  return true;
+}
+
+async function markPaymentFailed(paymentId: number, reason: string) {
+  const updated = await prisma.payment.updateMany({
+    where: { id: paymentId, status: "pending" },
+    data: { status: "failed" },
+  });
+  if (updated.count === 1) {
+    const payment = await prisma.payment.findUnique({
+      where: { id: paymentId },
+    });
+    await recordAudit({
+      actor: payment?.phoneNumber ?? "system",
+      actorType: "customer",
+      action: "payment.failed",
+      target: payment?.paymentReference ?? String(paymentId),
+      details: { reason },
+    });
+    invalidatePaymentCaches();
   }
 }
 
-function getRemainingTime(endDate: Date): string {
-  const now = new Date();
-  const end = new Date(endDate);
-  const diff = end.getTime() - now.getTime();
-  const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-  const hours = Math.ceil(diff / (1000 * 60 * 60));
-  if (days > 1) return `${days} days`;
-  if (hours > 1) return `${hours} hours`;
-  return "Less than 1 hour";
+function invalidatePaymentCaches() {
+  cache.delete("dashboard-stats");
+  cache.delete("voucher-analytics");
+  for (const key of cache.keys()) {
+    if (key.startsWith("voucher-availability")) cache.delete(key);
+  }
 }

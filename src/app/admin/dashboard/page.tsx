@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Users, DollarSign, Ticket, TrendingUp, Loader2, Activity, CreditCard } from "lucide-react";
+import { Users, DollarSign, Ticket, TrendingUp, Loader2, Activity, CreditCard, AlertCircle, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
+import { adminFetch } from "@/lib/admin-client";
 
 interface Stats {
   vouchers: { total: number; used: number; remaining: number; usagePercentage: number };
@@ -15,20 +17,65 @@ interface Stats {
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    const token = localStorage.getItem("adminToken");
-    fetch("/api/admin/dashboard-stats", { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
-      .then((d) => { if (d.success) setStats(d.data); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await adminFetch<Stats>("/api/admin/dashboard-stats");
+        if (!cancelled) {
+          setStats(data);
+          setError(null);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error && err.message !== "Session expired"
+              ? err.message
+              : "Could not load dashboard statistics."
+          );
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
+
+  const handleRetry = () => {
+    setLoading(true);
+    setRefreshKey((k) => k + 1);
+  };
 
   if (loading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", padding: "80px 0" }}>
+      <div style={{ display: "flex", justifyContent: "center", padding: "80px 0" }} role="status" aria-label="Loading dashboard">
         <Loader2 className="h-8 w-8" style={{ color: "var(--color-primary)", animation: "spin 1s linear infinite" }} />
+      </div>
+    );
+  }
+
+  if (error || !stats) {
+    return (
+      <div>
+        <div style={{ marginBottom: "24px" }}>
+          <h1 style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text)", marginBottom: "4px" }}>Dashboard</h1>
+          <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>Overview of your ISP operations</p>
+        </div>
+        <Card>
+          <CardContent style={{ padding: "48px 20px", textAlign: "center" }}>
+            <AlertCircle className="h-10 w-10" style={{ margin: "0 auto 16px", color: "var(--color-error)" }} />
+            <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>Failed to load statistics</p>
+            <p style={{ fontSize: "13px", color: "var(--color-text-muted)", marginBottom: "20px" }}>{error}</p>
+            <Button onClick={handleRetry} style={{ background: "var(--color-primary)", color: "#fff" }}>
+              <RefreshCw className="h-4 w-4" style={{ marginRight: "6px" }} /> Retry
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }

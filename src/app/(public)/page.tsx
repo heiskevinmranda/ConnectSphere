@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { HeroSection } from "./components/hero-section";
 import { PlansSection } from "./components/plans-section";
+import { StatusSection } from "./components/status-section";
 import { SupportSection } from "./components/support-section";
 import { Footer } from "./components/footer";
 import { PaymentModal } from "./components/payment-modal";
@@ -30,7 +31,7 @@ export default function PublicPage() {
     setShowSuccess(true);
   };
 
-  const handlePaymentError = () => {
+  const handleStockOut = () => {
     setShowPayment(false);
     setShowNoVoucher(true);
   };
@@ -47,6 +48,7 @@ export default function PublicPage() {
           paddingRight: "16px",
         }}
       >
+        <StatusSection />
         <PlansSection onSelectPlan={handleSelectPlan} />
         <SupportSection />
       </main>
@@ -56,7 +58,7 @@ export default function PublicPage() {
           plan={selectedPlan}
           onClose={() => setShowPayment(false)}
           onSuccess={handlePaymentSuccess}
-          onError={handlePaymentError}
+          onStockOut={handleStockOut}
         />
       )}
       {showSuccess && paymentResult && (

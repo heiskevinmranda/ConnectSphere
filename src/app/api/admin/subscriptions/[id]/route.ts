@@ -1,23 +1,48 @@
 import { NextRequest } from "next/server";
 import { customersService } from "@/modules/customers/services/customers.service";
-import { apiSuccess, apiError, apiNotFound, apiBadRequest } from "@/lib/api-response";
-import { cache } from "@/lib/cache";
+import { getAdminContext, recordAudit, getAdminId } from "@/lib/audit";
+import { getClientIp } from "@/lib/rate-limit";
+import { isServiceError } from "@/lib/errors";
+import {
+  apiSuccess,
+  apiError,
+  apiBadRequest,
+} from "@/lib/api-response";
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const ctx = getAdminContext(request.headers);
+  if (!ctx) return apiError("Missing admin context", 401);
+
   try {
     const { id } = await params;
     const subId = parseInt(id);
     if (isNaN(subId)) return apiBadRequest("Invalid subscription ID");
 
-    const deleted = await customersService.deleteSubscription(subId);
-    if (!deleted) return apiNotFound("Subscription not found");
+    const subscription =
+      await customersService.deleteSubscription(subId);
 
-    cache.delete("dashboard-stats");
+    await recordAudit({
+      actor: ctx.email,
+      action: "subscription.delete",
+      target: subscription?.phoneNumber ?? String(subId),
+      details: {
+        id: subId,
+        plan: subscription?.plan,
+        status: subscription?.status,
+      },
+      adminId: getAdminId(request.headers),
+      ip: getClientIp(request),
+    });
+
     return apiSuccess(null, "Subscription deleted successfully");
-  } catch {
+  } catch (error) {
+    if (isServiceError(error)) {
+      return apiError(error.message, error.statusCode);
+    }
+    console.error("[subscriptions] delete failed:", error);
     return apiError("Failed to delete subscription", 500);
   }
 }

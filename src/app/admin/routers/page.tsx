@@ -1,11 +1,13 @@
 ﻿"use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Router, Wifi, Search } from "lucide-react";
+import { Loader2, Router, Wifi, Search, AlertCircle, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { adminFetch } from "@/lib/admin-client";
 
 interface RouterItem { id: string; name: string; ip: string; model: string; status: string; cpu: number; memory: number; uptime: string; }
 interface AccessPoint { id: string; name: string; ssid: string; status: string; signal: number; clients: number; }
@@ -14,20 +16,45 @@ export default function RoutersPage() {
   const [routers, setRouters] = useState<RouterItem[]>([]);
   const [aps, setAps] = useState<AccessPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    const token = localStorage.getItem("adminToken");
-    const headers = { Authorization: "Bearer " + token };
-    Promise.all([
-      fetch("/api/admin/network/routers", { headers }).then((r) => r.json()),
-      fetch("/api/admin/network/access-points", { headers }).then((r) => r.json()),
-    ]).then(([rt, ap]) => {
-      if (rt.success) setRouters(rt.data || []);
-      if (ap.success) setAps(ap.data || []);
-    }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+    let cancelled = false;
+    (async () => {
+      try {
+        const [rt, ap] = await Promise.all([
+          adminFetch<RouterItem[]>("/api/admin/network/routers"),
+          adminFetch<AccessPoint[]>("/api/admin/network/access-points"),
+        ]);
+        if (!cancelled) {
+          setRouters(rt ?? []);
+          setAps(ap ?? []);
+          setError(null);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error && err.message !== "Session expired"
+              ? err.message
+              : "Could not load hardware status."
+          );
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
+
+  const handleRetry = () => {
+    setLoading(true);
+    setRefreshKey((k) => k + 1);
+  };
 
   const filteredRouters = routers.filter((r) => {
     if (search && !r.name.toLowerCase().includes(search.toLowerCase()) && !r.ip.includes(search)) return false;
@@ -42,7 +69,28 @@ export default function RoutersPage() {
   });
 
   if (loading) {
-    return <div style={{ display: "flex", justifyContent: "center", padding: "80px 0" }}><Loader2 className="h-8 w-8" style={{ color: "var(--color-primary)", animation: "spin 1s linear infinite" }} /></div>;
+    return <div style={{ display: "flex", justifyContent: "center", padding: "80px 0" }} role="status" aria-label="Loading hardware status"><Loader2 className="h-8 w-8" style={{ color: "var(--color-primary)", animation: "spin 1s linear infinite" }} /></div>;
+  }
+
+  if (error) {
+    return (
+      <div>
+        <div style={{ marginBottom: "24px" }}>
+          <h1 style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text)", marginBottom: "4px" }}>Routers &amp; Access Points</h1>
+          <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>Monitor hardware and wireless infrastructure</p>
+        </div>
+        <Card>
+          <CardContent style={{ padding: "48px 20px", textAlign: "center" }}>
+            <AlertCircle className="h-10 w-10" style={{ margin: "0 auto 16px", color: "var(--color-error)" }} />
+            <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>Failed to load hardware status</p>
+            <p style={{ fontSize: "13px", color: "var(--color-text-muted)", marginBottom: "20px" }}>{error}</p>
+            <Button onClick={handleRetry} style={{ background: "var(--color-primary)", color: "#fff" }}>
+              <RefreshCw className="h-4 w-4" style={{ marginRight: "6px" }} /> Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   const renderBar = (label: string, value: number, color: string) => (

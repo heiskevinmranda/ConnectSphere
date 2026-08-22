@@ -83,94 +83,183 @@ export const dashboardService = {
   },
 
   async getVoucherAnalytics(): Promise<VoucherAnalytics> {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    return cache.getOrSet(
+      "voucher-analytics",
+      async () => {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const twelveMonthsAgo = new Date();
-    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+        const twelveMonthsAgo = new Date();
+        twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+        twelveMonthsAgo.setDate(1);
+        twelveMonthsAgo.setHours(0, 0, 0, 0);
 
-    const [voucherUsageByDay, planDistribution, voucherDistribution, usageByPrice, monthlyRevenue] =
-      await Promise.all([
-        prisma.voucher.groupBy({
-          by: ["updatedAt"],
-          where: { isUsed: true, updatedAt: { gte: thirtyDaysAgo } },
-          _count: true,
-        }),
-        prisma.subscription.groupBy({
-          by: ["plan"],
-          _count: { plan: true },
-        }),
-        prisma.voucher.groupBy({
-          by: ["price"],
-          _count: true,
-        }),
-        prisma.voucher.groupBy({
-          by: ["price"],
-          where: { isUsed: true },
-          _count: true,
-        }),
-        prisma.payment.groupBy({
-          by: ["createdAt"],
-          where: {
-            status: "completed",
-            createdAt: { gte: twelveMonthsAgo },
-          },
-          _sum: { amount: true },
-          _count: true,
-        }),
-      ]);
+        const [
+          usedVouchers30d,
+          planDistribution,
+          voucherDistribution,
+          usageByPrice,
+          completedPayments12m,
+          newSubscriptions12m,
+        ] = await Promise.all([
+          prisma.voucher.findMany({
+            where: { isUsed: true, updatedAt: { gte: thirtyDaysAgo } },
+            select: { updatedAt: true },
+          }),
+          prisma.subscription.groupBy({
+            by: ["plan"],
+            _count: { plan: true },
+          }),
+          prisma.voucher.groupBy({
+            by: ["price"],
+            _count: { price: true },
+          }),
+          prisma.voucher.groupBy({
+            by: ["price"],
+            where: { isUsed: true },
+            _count: { price: true },
+          }),
+          prisma.payment.findMany({
+            where: {
+              status: "completed",
+              createdAt: { gte: twelveMonthsAgo },
+            },
+            select: { createdAt: true, amount: true },
+          }),
+          prisma.subscription.findMany({
+            where: { createdAt: { gte: twelveMonthsAgo } },
+            select: { createdAt: true },
+          }),
+        ]);
 
-    return {
-      voucherUsageByDay: voucherUsageByDay.map((v) => ({
-        date: v.updatedAt.toISOString().split("T")[0],
-        count: v._count,
-      })),
-      planDistribution: planDistribution.map((p) => ({
-        plan: p.plan,
-        count: p._count.plan,
-      })),
-      voucherDistribution: voucherDistribution.map((v) => ({
-        price: v.price,
-        total: v._count,
-        available: 0,
-        used: 0,
-      })),
-      usageByPrice: usageByPrice.map((v) => ({
-        price: v.price,
-        count: v._count,
-      })),
-      monthlyRevenue: monthlyRevenue.map((m) => ({
-        month: m.createdAt.toISOString().substring(0, 7),
-        revenue: m._sum.amount || 0,
-        transactions: m._count,
-      })),
-    };
+        // Bucket voucher redemptions by calendar day.
+        const usageByDayMap = new Map<string, number>();
+        for (const v of usedVouchers30d) {
+          const day = v.updatedAt.toISOString().split("T")[0];
+          usageByDayMap.set(day, (usageByDayMap.get(day) ?? 0) + 1);
+        }
+        const voucherUsageByDay = Array.from(usageByDayMap.entries())
+          .map(([date, count]) => ({ date, count }))
+          .sort((a, b) => a.date.localeCompare(b.date));
+
+        const distributionByPrice = new Map(
+          voucherDistribution.map((v) => [
+            v.price,
+            { total: v._count.price, available: 0, used: 0 },
+          ])
+        );
+        for (const entry of usageByPrice) {
+          const dist = distributionByPrice.get(entry.price);
+          if (dist) {
+            dist.used = entry._count.price;
+            dist.available = dist.total - dist.used;
+          }
+        }
+
+        // Bucket revenue and subscriber growth by calendar month.
+        const monthlyRevenueMap = new Map<
+          string,
+          { revenue: number; transactions: number }
+        >();
+        for (const p of completedPayments12m) {
+          const month = p.createdAt.toISOString().substring(0, 7);
+          const entry = monthlyRevenueMap.get(month) ?? {
+            revenue: 0,
+            transactions: 0,
+          };
+          entry.revenue += p.amount;
+          entry.transactions += 1;
+          monthlyRevenueMap.set(month, entry);
+        }
+        const monthlyRevenue = Array.from(monthlyRevenueMap.entries())
+          .map(([month, v]) => ({ month, ...v }))
+          .sort((a, b) => a.month.localeCompare(b.month));
+
+        const growthMap = new Map<string, number>();
+        for (const s of newSubscriptions12m) {
+          const month = s.createdAt.toISOString().substring(0, 7);
+          growthMap.set(month, (growthMap.get(month) ?? 0) + 1);
+        }
+        const subscriberGrowth = Array.from(growthMap.entries())
+          .map(([month, count]) => ({ month, count }))
+          .sort((a, b) => a.month.localeCompare(b.month));
+
+        return {
+          voucherUsageByDay,
+          planDistribution: planDistribution.map((p) => ({
+            plan: p.plan,
+            count: p._count.plan,
+          })),
+          voucherDistribution: Array.from(
+            distributionByPrice.entries()
+          ).map(([price, v]) => ({ price, ...v })),
+          usageByPrice: usageByPrice.map((v) => ({
+            price: v.price,
+            count: v._count.price,
+          })),
+          monthlyRevenue,
+          subscriberGrowth,
+        };
+      },
+      120
+    );
   },
 
   async getSubscriptionAnalytics(): Promise<SubscriptionAnalytics> {
-    const sevenDaysFromNow = new Date();
-    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+    return cache.getOrSet(
+      "subscription-analytics",
+      async () => {
+        const sevenDaysFromNow = new Date();
+        sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
 
-    const [statusDistribution, expiringSoon] = await Promise.all([
-      prisma.subscription.groupBy({
-        by: ["status"],
-        _count: { status: true },
-      }),
-      prisma.subscription.count({
-        where: {
-          status: "active",
-          endDate: { lte: sevenDaysFromNow },
-        },
-      }),
-    ]);
+        const [statusDistribution, expiringSoon, planCounts] =
+          await Promise.all([
+            prisma.subscription.groupBy({
+              by: ["status"],
+              _count: { status: true },
+            }),
+            prisma.subscription.count({
+              where: {
+                status: "active",
+                endDate: { lte: sevenDaysFromNow },
+              },
+            }),
+            prisma.subscription.groupBy({
+              by: ["plan"],
+              _count: { plan: true },
+            }),
+          ]);
 
-    return {
-      statusDistribution: statusDistribution.map((s) => ({
-        status: s.status,
-        count: s._count.status,
-      })),
-      expiringSoon,
-      averageDuration: 0,
-    };
+        // Average subscription length, weighted by plan popularity.
+        const plans = await prisma.plan.findMany({
+          select: { slug: true, duration: true },
+        });
+        const durationByPlan = new Map(plans.map((p) => [p.slug, p.duration]));
+
+        let weightedTotal = 0;
+        let totalCounted = 0;
+        for (const pc of planCounts) {
+          const duration = durationByPlan.get(pc.plan);
+          if (duration !== undefined) {
+            weightedTotal += duration * pc._count.plan;
+            totalCounted += pc._count.plan;
+          }
+        }
+        const averageDuration =
+          totalCounted > 0
+            ? Math.round((weightedTotal / totalCounted) * 10) / 10
+            : 0;
+
+        return {
+          statusDistribution: statusDistribution.map((s) => ({
+            status: s.status,
+            count: s._count.status,
+          })),
+          expiringSoon,
+          averageDuration,
+        };
+      },
+      120
+    );
   },
 };

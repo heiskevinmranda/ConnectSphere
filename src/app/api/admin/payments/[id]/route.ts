@@ -1,23 +1,47 @@
 import { NextRequest } from "next/server";
 import { customersService } from "@/modules/customers/services/customers.service";
-import { apiSuccess, apiError, apiNotFound, apiBadRequest } from "@/lib/api-response";
-import { cache } from "@/lib/cache";
+import { getAdminContext, recordAudit, getAdminId } from "@/lib/audit";
+import { getClientIp } from "@/lib/rate-limit";
+import { isServiceError } from "@/lib/errors";
+import {
+  apiSuccess,
+  apiError,
+  apiBadRequest,
+} from "@/lib/api-response";
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const ctx = getAdminContext(request.headers);
+  if (!ctx) return apiError("Missing admin context", 401);
+
   try {
     const { id } = await params;
     const paymentId = parseInt(id);
     if (isNaN(paymentId)) return apiBadRequest("Invalid payment ID");
 
-    const deleted = await customersService.deletePayment(paymentId);
-    if (!deleted) return apiNotFound("Payment not found");
+    const payment = await customersService.deletePayment(paymentId);
 
-    cache.delete("dashboard-stats");
-    return apiSuccess(null, "Payment deleted successfully");
-  } catch {
+    await recordAudit({
+      actor: ctx.email,
+      action: "payment.delete",
+      target: payment?.paymentReference ?? String(paymentId),
+      details: {
+        id: paymentId,
+        status: payment?.status,
+        amount: payment?.amount,
+      },
+      adminId: getAdminId(request.headers),
+      ip: getClientIp(request),
+    });
+
+    return apiSuccess(null, "Payment record deleted successfully");
+  } catch (error) {
+    if (isServiceError(error)) {
+      return apiError(error.message, error.statusCode);
+    }
+    console.error("[payments] delete failed:", error);
     return apiError("Failed to delete payment", 500);
   }
 }

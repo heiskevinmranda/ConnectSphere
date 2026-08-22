@@ -121,21 +121,40 @@ select {
   justify-items: center;
 }
 
+.plans-grid-responsive > * {
+  width: 100%;
+  max-width: 220px;
+}
+
 @media (max-width: 1024px) {
   .plans-grid-responsive {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
+/* Mobile: single-row horizontally scrolling carousel */
 @media (max-width: 640px) {
   .plans-grid-responsive {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    /* Bleed past the main container's 16px side padding so cards align
+       with the screen edge and neighbouring cards peek into view */
+    margin-left: -16px;
+    margin-right: -16px;
+    padding: 4px 16px 12px;
   }
-}
-
-@media (max-width: 400px) {
-  .plans-grid-responsive {
-    grid-template-columns: 1fr;
+  .plans-grid-responsive::-webkit-scrollbar {
+    display: none;
+  }
+  .plans-grid-responsive > * {
+    flex: 0 0 172px;
+    width: 172px;
+    max-width: none;
+    scroll-snap-align: center;
   }
 }
 

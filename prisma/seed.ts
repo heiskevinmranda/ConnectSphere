@@ -1,9 +1,25 @@
 import "dotenv/config";
-import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { PrismaLibSql } from "@prisma/adapter-libsql";
+import { PrismaClient } from "@prisma/client";
 
-const DEFAULT_ADMIN_EMAIL = "admin@connectsphere.co.tz";
-const DEFAULT_ADMIN_PASSWORD = "Admin@123";
+const url = process.env.DATABASE_URL;
+if (!url) throw new Error("DATABASE_URL is not set");
+
+const prisma = new PrismaClient({ adapter: new PrismaLibSql({ url }) });
+
+const DEFAULT_ADMINS = [
+  {
+    email: "admin@connectsphere.co.tz",
+    password: "Admin@123",
+    role: "admin",
+  },
+  {
+    email: "superadmin@connectsphere.co.tz",
+    password: "Super@123",
+    role: "super_admin",
+  },
+];
 
 const DEFAULT_PLANS = [
   {
@@ -53,28 +69,67 @@ const DEFAULT_PLANS = [
   },
 ];
 
+// Starter voucher inventory per price tier so the public purchase
+// flow works immediately after seeding.
+const STARTER_VOUCHERS_PER_TIER = [1000, 2000, 5000, 10000, 20000].map(
+  (price) => ({ price, count: 50 })
+);
+
+function generateVoucherCode(): string {
+  const digits = new Uint8Array(10);
+  crypto.getRandomValues(digits);
+  return Array.from(digits, (b) => (b % 10).toString()).join("");
+}
+
+async function seedVouchers() {
+  for (const { price, count } of STARTER_VOUCHERS_PER_TIER) {
+    const existing = await prisma.voucher.count({
+      where: { price, isUsed: false, subscriptionId: null },
+    });
+    const toCreate = Math.max(0, count - existing);
+    if (toCreate === 0) continue;
+
+    const codes = new Set<string>();
+    while (codes.size < toCreate) {
+      codes.add(generateVoucherCode());
+    }
+
+    await prisma.voucher.createMany({
+      data: Array.from(codes, (code) => ({
+        code,
+        price,
+        isUsed: false,
+      })),
+    });
+    console.log(`Seeded ${toCreate} vouchers at TSh ${price.toLocaleString()}`);
+  }
+}
+
 async function seed() {
   console.log("Seeding database...");
 
-  // Seed admin
-  const existingAdmin = await prisma.admin.findUnique({
-    where: { email: DEFAULT_ADMIN_EMAIL },
-  });
-
-  if (!existingAdmin) {
-    const hashedPassword = await bcrypt.hash(DEFAULT_ADMIN_PASSWORD, 10);
-    await prisma.admin.create({
-      data: {
-        email: DEFAULT_ADMIN_EMAIL,
-        password: hashedPassword,
-      },
+  for (const admin of DEFAULT_ADMINS) {
+    const existing = await prisma.admin.findUnique({
+      where: { email: admin.email },
     });
-    console.log("Default admin created");
-  } else {
-    console.log("Admin account already exists");
+    if (!existing) {
+      const hashedPassword = await bcrypt.hash(admin.password, 10);
+      await prisma.admin.create({
+        data: {
+          email: admin.email,
+          password: hashedPassword,
+          role: admin.role,
+        },
+      });
+      console.log(`Created ${admin.role}: ${admin.email}`);
+    } else if (existing.role !== admin.role) {
+      await prisma.admin.update({
+        where: { email: admin.email },
+        data: { role: admin.role },
+      });
+    }
   }
 
-  // Seed plans
   for (const plan of DEFAULT_PLANS) {
     await prisma.plan.upsert({
       where: { slug: plan.slug },
@@ -84,14 +139,14 @@ async function seed() {
   }
   console.log("Default plans ensured");
 
+  await seedVouchers();
+
   console.log("Seeding complete");
 }
 
 seed()
-  .then(() => {
-    prisma.$disconnect();
-    process.exit(0);
-  })
+  .then(() => prisma.$disconnect())
+  .then(() => process.exit(0))
   .catch(async (e) => {
     console.error("Seed failed:", e);
     await prisma.$disconnect();

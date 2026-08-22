@@ -37,6 +37,7 @@ export interface VoucherAnalytics {
     used: number;
   }>;
   usageByPrice: Array<{ price: number; count: number }>;
+  subscriberGrowth: Array<{ month: string; count: number }>;
 }
 
 export interface SubscriptionAnalytics {

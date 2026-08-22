@@ -1,18 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Shield, Loader2, X } from "lucide-react";
-import { useToast } from "@/modules/notifications/hooks/use-toast";
+import { toast } from "@/components/ui/toaster";
 
 interface Props {
   onClose: () => void;
 }
 
 export function AdminLoginModal({ onClose }: Props) {
-  const { toast } = useToast();
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -27,15 +36,15 @@ export function AdminLoginModal({ onClose }: Props) {
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
-      if (data.success) {
+      if (data.success && data.data?.token) {
         localStorage.setItem("adminToken", data.data.token);
         toast.success("Login successful!");
-        window.location.href = "/admin/dashboard";
-      } else {
-        toast.error(data.message || "Login failed");
+        router.push("/admin/dashboard");
+        return;
       }
+      toast.error(data.message || "Invalid email or password");
     } catch {
-      toast.error("Login failed");
+      toast.error("Could not reach the server. Please try again.");
     }
     setLoading(false);
   };
@@ -47,55 +56,70 @@ export function AdminLoginModal({ onClose }: Props) {
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="admin-login-title"
         className="bg-white w-full max-w-sm mx-4 overflow-hidden"
         style={{ borderRadius: "var(--radius-xl)", animation: "slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Gradient Header */}
         <div className="relative text-center" style={{ background: "linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%)", padding: "32px 24px 24px" }}>
-          <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center text-white transition-colors" style={{ background: "rgba(255,255,255,0.15)" }}>
+          <button onClick={onClose} aria-label="Close admin login" className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center text-white transition-colors" style={{ background: "rgba(255,255,255,0.15)" }}>
             <X className="h-4 w-4" />
           </button>
           <div className="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(10px)" }}>
             <Shield className="h-7 w-7 text-white" />
           </div>
-          <h2 className="text-xl font-bold text-white mb-1">Admin Portal</h2>
+          <h2 id="admin-login-title" className="text-xl font-bold text-white mb-1">Admin Portal</h2>
           <p className="text-xs" style={{ color: "rgba(255,255,255,0.7)" }}>Sign in to access the admin dashboard</p>
         </div>
 
         {/* Body */}
-        <div style={{ padding: "24px" }}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleLogin();
+          }}
+          style={{ padding: "24px" }}
+        >
           <div className="mb-4">
-            <label className="block text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide mb-2">Email</label>
+            <label htmlFor="admin-email" className="block text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide mb-2">Email</label>
             <input
+              id="admin-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="admin@connectsphere.co.tz"
+              autoComplete="username"
+              required
               className="w-full text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
               style={{ border: "1.5px solid var(--color-border)", borderRadius: "var(--radius-md)", padding: "12px 14px" }}
             />
           </div>
           <div className="mb-4">
-            <label className="block text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide mb-2">Password</label>
+            <label htmlFor="admin-password" className="block text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wide mb-2">Password</label>
             <input
+              id="admin-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter password"
+              autoComplete="current-password"
+              required
               className="w-full text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
               style={{ border: "1.5px solid var(--color-border)", borderRadius: "var(--radius-md)", padding: "12px 14px" }}
             />
           </div>
           <button
-            onClick={handleLogin}
+            type="submit"
             disabled={loading}
             className="w-full font-semibold text-white flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
             style={{ padding: "14px", background: "var(--color-primary)", borderRadius: "var(--radius-md)", fontSize: "0.95rem" }}
           >
             {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Signing in...</> : "Sign In"}
           </button>
-        </div>
+        </form>
 
         {/* Footer */}
         <div className="text-center" style={{ paddingBottom: "20px" }}>

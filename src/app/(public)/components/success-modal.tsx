@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, X } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 
 interface SuccessModalProps {
   data: Record<string, unknown>;
@@ -18,6 +18,9 @@ export function SuccessModal({ data, onClose }: SuccessModalProps) {
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="success-modal-title"
         className="bg-white w-full max-w-md"
         style={{ borderRadius: "var(--radius-xl) var(--radius-xl) 0 0", animation: "slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)" }}
         onClick={(e) => e.stopPropagation()}
@@ -26,7 +29,7 @@ export function SuccessModal({ data, onClose }: SuccessModalProps) {
           <div className="w-16 h-16 rounded-full bg-[var(--color-success-surface)] text-[var(--color-success)] flex items-center justify-center mx-auto mb-4" style={{ animation: "popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)" }}>
             <CheckCircle2 className="h-8 w-8" />
           </div>
-          <h2 className="text-xl font-bold text-[var(--color-text)]">Payment Successful!</h2>
+          <h2 id="success-modal-title" className="text-xl font-bold text-[var(--color-text)]">Payment Successful!</h2>
         </div>
 
         <div style={{ padding: "0 24px 24px" }}>

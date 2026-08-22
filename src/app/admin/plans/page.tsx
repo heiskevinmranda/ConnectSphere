@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Plus, Pencil, Trash2, Package } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Package, Wifi, Signal, Gauge, Rocket, Star, RefreshCw, AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -9,19 +9,30 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toaster";
 import { formatDuration, formatCurrency } from "@/lib/utils";
+import { adminFetch } from "@/lib/admin-client";
 
 interface Plan {
   id: number; name: string; slug: string; price: number; duration: number;
-  description: string | null; isActive: boolean; sortOrder: number;
+  description: string | null; icon: string; isActive: boolean; sortOrder: number;
 }
 
-const emptyForm = { name: "", slug: "", price: 0, duration: 1, description: "", sortOrder: 0 };
+const ICON_OPTIONS = [
+  { value: "wifi", label: "Wifi", Icon: Wifi },
+  { value: "signal", label: "Signal", Icon: Signal },
+  { value: "gauge", label: "Gauge", Icon: Gauge },
+  { value: "rocket", label: "Rocket", Icon: Rocket },
+  { value: "star", label: "Star", Icon: Star },
+];
+
+const emptyForm = { name: "", slug: "", price: 0, duration: 1, description: "", icon: "wifi", sortOrder: 0, isActive: true };
 
 export default function PlansPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("all");
 
   const [formOpen, setFormOpen] = useState(false);
@@ -32,17 +43,38 @@ export default function PlansPage() {
   const [deleteTarget, setDeleteTarget] = useState<Plan | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const fetchPlans = () => {
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const reload = () => {
     setLoading(true);
-    const token = localStorage.getItem("adminToken");
-    fetch("/api/plans", { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
-      .then((d) => { if (d.success) setPlans(d.data || []); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    setRefreshKey((k) => k + 1);
   };
 
-  useEffect(() => { fetchPlans(); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await adminFetch<Plan[]>("/api/admin/plans");
+        if (!cancelled) {
+          setPlans(data ?? []);
+          setError(null);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error && err.message !== "Session expired"
+              ? err.message
+              : "Could not load plans."
+          );
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
 
   const openCreate = () => {
     setForm(emptyForm);
@@ -51,7 +83,7 @@ export default function PlansPage() {
   };
 
   const openEdit = (plan: Plan) => {
-    setForm({ name: plan.name, slug: plan.slug, price: plan.price, duration: plan.duration, description: plan.description || "", sortOrder: plan.sortOrder });
+    setForm({ name: plan.name, slug: plan.slug, price: plan.price, duration: plan.duration, description: plan.description || "", icon: plan.icon || "wifi", sortOrder: plan.sortOrder, isActive: plan.isActive });
     setEditingId(plan.id);
     setFormOpen(true);
   };
@@ -59,42 +91,34 @@ export default function PlansPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const token = localStorage.getItem("adminToken");
-      const method = editingId ? "PUT" : "POST";
-      const url = editingId ? `/api/plans?id=${editingId}` : "/api/plans";
-      const res = await fetch(url, { method, headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(form) });
-      const data = await res.json();
-      if (data.success) {
-        toast.success(editingId ? "Plan updated" : "Plan created", { description: `${form.name} has been ${editingId ? "updated" : "created"} successfully.` });
-        setFormOpen(false);
-        fetchPlans();
+      if (editingId) {
+        await adminFetch(`/api/admin/plans/${editingId}`, { method: "PUT", body: form });
       } else {
-        toast.error("Failed to save plan", { description: data.message || "An error occurred." });
+        await adminFetch("/api/admin/plans", { method: "POST", body: form });
       }
-    } catch {
-      toast.error("Network error", { description: "Could not reach the server." });
+      toast.success(editingId ? "Plan updated" : "Plan created", { description: `${form.name} has been ${editingId ? "updated" : "created"} successfully.` });
+      setFormOpen(false);
+      reload();
+    } catch (err) {
+      toast.error("Failed to save plan", { description: err instanceof Error ? err.message : "An error occurred." });
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const token = localStorage.getItem("adminToken");
-      const res = await fetch(`/api/plans?id=${deleteTarget.id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
-      if (data.success) {
-        toast.success("Plan deleted", { description: `${deleteTarget.name} has been removed.` });
-        setDeleteTarget(null);
-        fetchPlans();
-      } else {
-        toast.error("Failed to delete plan", { description: data.message || "An error occurred." });
-      }
-    } catch {
-      toast.error("Network error", { description: "Could not reach the server." });
+      await adminFetch(`/api/admin/plans/${deleteTarget.id}`, { method: "DELETE" });
+      toast.success("Plan deleted", { description: `${deleteTarget.name} has been removed.` });
+      setDeleteTarget(null);
+      reload();
+    } catch (err) {
+      toast.error("Failed to delete plan", { description: err instanceof Error ? err.message : "An error occurred." });
+    } finally {
+      setDeleting(false);
     }
-    setDeleting(false);
   };
 
   const filtered = plans.filter((p) => filter === "all" || (filter === "active" ? p.isActive : !p.isActive));
@@ -135,27 +159,72 @@ export default function PlansPage() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
               <div>
                 <label style={labelStyle}>Plan Name</label>
-                <Input placeholder="e.g. Basic" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                <Input placeholder="e.g. Basic" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} aria-label="Plan name" />
               </div>
               <div>
                 <label style={labelStyle}>Slug</label>
-                <Input placeholder="e.g. basic" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} />
+                <Input placeholder="e.g. basic" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-") })} aria-label="Plan slug" />
               </div>
               <div>
                 <label style={labelStyle}>Price (TSh)</label>
-                <Input type="number" placeholder="5000" value={form.price || ""} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} />
+                <Input type="number" placeholder="5000" value={form.price || ""} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })} aria-label="Plan price in Tanzanian shillings" />
               </div>
               <div>
                 <label style={labelStyle}>Duration (days)</label>
-                <Input type="number" placeholder="30" value={form.duration || ""} onChange={(e) => setForm({ ...form, duration: Number(e.target.value) })} />
+                <Input type="number" placeholder="30" value={form.duration || ""} onChange={(e) => setForm({ ...form, duration: Number(e.target.value) })} aria-label="Plan duration in days" />
               </div>
               <div>
                 <label style={labelStyle}>Description</label>
-                <Input placeholder="Optional description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                <Input placeholder="Optional description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} aria-label="Plan description" />
               </div>
               <div>
                 <label style={labelStyle}>Sort Order</label>
-                <Input type="number" placeholder="0" value={form.sortOrder || ""} onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) })} />
+                <Input type="number" placeholder="0" value={form.sortOrder || ""} onChange={(e) => setForm({ ...form, sortOrder: Number(e.target.value) })} aria-label="Sort order" />
+              </div>
+              <div style={{ gridColumn: "1 / -1" }}>
+                <label style={labelStyle}>Icon (shown on public pricing card)</label>
+                <div role="radiogroup" aria-label="Plan icon" style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  {ICON_OPTIONS.map(({ value, label, Icon }) => {
+                    const selected = form.icon === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        aria-label={`${label} icon`}
+                        title={label}
+                        onClick={() => setForm({ ...form, icon: value })}
+                        style={{
+                          width: "44px",
+                          height: "44px",
+                          borderRadius: "10px",
+                          border: `2px solid ${selected ? "var(--color-primary)" : "var(--color-border)"}`,
+                          background: selected ? "var(--color-primary-surface)" : "var(--color-bg-elevated)",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          transition: "all 120ms ease",
+                        }}
+                      >
+                        <Icon className="h-5 w-5" style={{ color: selected ? "var(--color-primary)" : "var(--color-text-muted)" }} />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", gridColumn: "1 / -1" }}>
+                <input
+                  id="plan-active"
+                  type="checkbox"
+                  checked={form.isActive}
+                  onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+                  style={{ width: "16px", height: "16px", accentColor: "var(--color-primary)", cursor: "pointer" }}
+                />
+                <label htmlFor="plan-active" style={{ fontSize: "13px", color: "var(--color-text-secondary)", cursor: "pointer" }}>
+                  Visible to customers on the public site
+                </label>
               </div>
             </div>
           </div>
@@ -181,7 +250,18 @@ export default function PlansPage() {
         onConfirm={handleDelete}
       />
 
-      {loading ? (
+      {error && !loading ? (
+        <Card>
+          <CardContent style={{ padding: "48px 20px", textAlign: "center" }}>
+            <AlertCircle className="h-10 w-10" style={{ margin: "0 auto 16px", color: "var(--color-error)" }} />
+            <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>Failed to load plans</p>
+            <p style={{ fontSize: "13px", color: "var(--color-text-muted)", marginBottom: "20px" }}>{error}</p>
+            <Button onClick={reload} style={{ background: "var(--color-primary)", color: "#fff" }}>
+              <RefreshCw className="h-4 w-4" style={{ marginRight: "6px" }} /> Retry
+            </Button>
+          </CardContent>
+        </Card>
+      ) : loading ? (
         <div style={{ display: "flex", justifyContent: "center", padding: "80px 0" }}>
           <Loader2 className="h-8 w-8" style={{ color: "var(--color-primary)", animation: "spin 1s linear infinite" }} />
         </div>
@@ -211,13 +291,21 @@ export default function PlansPage() {
               <TableBody>
                 {filtered.map((plan, idx) => {
                   const isLast = idx === filtered.length - 1;
+                  const IconComp = ICON_OPTIONS.find((i) => i.value === plan.icon)?.Icon || Wifi;
                   return (
                     <TableRow key={plan.id} style={{ background: idx % 2 === 0 ? "transparent" : "var(--color-bg-subtle)" }}>
                       <TableCell style={isLast ? lastTd : tdStyle}>
-                        <span style={{ fontWeight: 600, color: "var(--color-text)" }}>{plan.name}</span>
-                        {plan.description && (
-                          <p style={{ fontSize: "12px", color: "var(--color-text-muted)", marginTop: "2px" }}>{plan.description}</p>
-                        )}
+                        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                          <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: "var(--color-primary-surface)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <IconComp className="h-4 w-4" style={{ color: "var(--color-primary)" }} />
+                          </div>
+                          <div>
+                            <span style={{ fontWeight: 600, color: "var(--color-text)" }}>{plan.name}</span>
+                            {plan.description && (
+                              <p style={{ fontSize: "12px", color: "var(--color-text-muted)", marginTop: "2px" }}>{plan.description}</p>
+                            )}
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell style={isLast ? lastTd : tdStyle}>
                         <span style={{ fontFamily: "'SF Mono', 'Consolas', monospace", fontSize: "12px", padding: "2px 8px", borderRadius: "4px", background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" }}>{plan.slug}</span>
@@ -238,10 +326,10 @@ export default function PlansPage() {
                       </TableCell>
                       <TableCell style={{ ...tdStyle, textAlign: "right" }}>
                         <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end" }}>
-                          <button onClick={() => openEdit(plan)} style={{ padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: "6px", background: "var(--color-bg-elevated)", cursor: "pointer", display: "flex", alignItems: "center" }} title="Edit">
+                          <button onClick={() => openEdit(plan)} aria-label={`Edit plan ${plan.name}`} style={{ padding: "6px 8px", border: "1px solid var(--color-border)", borderRadius: "6px", background: "var(--color-bg-elevated)", cursor: "pointer", display: "flex", alignItems: "center" }} title="Edit">
                             <Pencil className="h-3.5 w-3.5" style={{ color: "var(--color-text-secondary)" }} />
                           </button>
-                          <button onClick={() => setDeleteTarget(plan)} style={{ padding: "6px 8px", border: "1px solid var(--color-error-surface)", borderRadius: "6px", background: "var(--color-error-surface)", cursor: "pointer", display: "flex", alignItems: "center" }} title="Delete">
+                          <button onClick={() => setDeleteTarget(plan)} aria-label={`Delete plan ${plan.name}`} style={{ padding: "6px 8px", border: "1px solid var(--color-error-surface)", borderRadius: "6px", background: "var(--color-error-surface)", cursor: "pointer", display: "flex", alignItems: "center" }} title="Delete">
                             <Trash2 className="h-3.5 w-3.5" style={{ color: "var(--color-error)" }} />
                           </button>
                         </div>
