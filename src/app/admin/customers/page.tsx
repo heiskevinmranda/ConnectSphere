@@ -265,7 +265,7 @@ export default function CustomersPage() {
       ) : (
         <Card>
           <div style={{ overflowX: "auto" }}>
-            <Table>
+            <Table className="table-mobile">
               <TableHeader>
                 <TableRow>
                   <TableHead style={thStyle}>Phone Number</TableHead>
@@ -283,21 +283,21 @@ export default function CustomersPage() {
                   const isLast = idx === rows.length - 1;
                   return (
                     <TableRow key={`${u.type}-${u.id}`} style={{ background: idx % 2 === 0 ? "transparent" : "var(--color-bg-subtle)" }}>
-                      <TableCell style={isLast ? lastTd : tdStyle}>
+                      <TableCell data-label="Phone Number" style={isLast ? lastTd : tdStyle}>
                         <span style={{ fontFamily: "'SF Mono', 'Consolas', monospace", fontSize: "15px", fontWeight: 500, color: "var(--color-text)" }}>{u.phoneNumber}</span>
                       </TableCell>
-                      <TableCell style={isLast ? lastTd : tdStyle}>
+                      <TableCell data-label="Plan" style={isLast ? lastTd : tdStyle}>
                         <span style={{ textTransform: "capitalize", fontWeight: 500 }}>{u.plan}</span>
                       </TableCell>
-                      <TableCell style={isLast ? lastTd : tdStyle}>
+                      <TableCell data-label="Status" style={isLast ? lastTd : tdStyle}>
                         <Badge style={{ background: sc.bg, color: sc.color, fontSize: "12px", fontWeight: 600, textTransform: "capitalize", padding: "3px 10px" }}>
                           {u.status.replace("_", " ")}
                         </Badge>
                       </TableCell>
-                      <TableCell style={{ ...tdStyle, textAlign: "right", fontWeight: 600, color: "var(--color-text)" }}>
+                      <TableCell data-label="Amount" style={{ ...tdStyle, textAlign: "right", fontWeight: 600, color: "var(--color-text)" }}>
                         TSh {(u.amount ?? 0).toLocaleString()}
                       </TableCell>
-                      <TableCell style={isLast ? lastTd : tdStyle}>
+                      <TableCell data-label="Valid Until" style={isLast ? lastTd : tdStyle}>
                         {u.endDate ? (
                           <span style={{ color: "var(--color-text-secondary)" }}>
                             {new Date(u.endDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
@@ -308,7 +308,7 @@ export default function CustomersPage() {
                           <span style={{ color: "var(--color-text-muted)" }}>-</span>
                         )}
                       </TableCell>
-                      <TableCell style={isLast ? lastTd : tdStyle}>
+                      <TableCell data-label="Voucher" style={isLast ? lastTd : tdStyle}>
                         {u.voucherCode || u.paymentReference ? (
                           <span style={{ fontFamily: "'SF Mono', 'Consolas', monospace", fontSize: "14px", padding: "2px 8px", borderRadius: "4px", background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" }}>
                             {(u.voucherCode ?? u.paymentReference ?? "").slice(0, 12)}
@@ -317,7 +317,7 @@ export default function CustomersPage() {
                           <span style={{ color: "var(--color-text-muted)" }}>-</span>
                         )}
                       </TableCell>
-                      <TableCell style={{ ...tdStyle, textAlign: "right" }}>
+                      <TableCell data-label="Actions" style={{ ...tdStyle, textAlign: "right" }}>
                         <button
                           type="button"
                           aria-label={`Delete ${u.type === "pending_payment" ? "pending payment" : "subscription"} for ${u.phoneNumber}`}

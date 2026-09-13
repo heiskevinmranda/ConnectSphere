@@ -276,7 +276,7 @@ export default function PlansPage() {
       ) : (
         <Card>
           <div style={{ overflowX: "auto" }}>
-            <Table>
+            <Table className="table-mobile">
               <TableHeader>
                 <TableRow>
                   <TableHead style={thStyle}>Plan Name</TableHead>
@@ -294,8 +294,7 @@ export default function PlansPage() {
                   const IconComp = ICON_OPTIONS.find((i) => i.value === plan.icon)?.Icon || Wifi;
                   return (
                     <TableRow key={plan.id} style={{ background: idx % 2 === 0 ? "transparent" : "var(--color-bg-subtle)" }}>
-                      <TableCell style={isLast ? lastTd : tdStyle}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <TableCell data-label="Plan Name" style={isLast ? lastTd : tdStyle}>
                           <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: "var(--color-primary-surface)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                             <IconComp className="h-4 w-4" style={{ color: "var(--color-primary)" }} />
                           </div>
@@ -307,10 +306,10 @@ export default function PlansPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell style={isLast ? lastTd : tdStyle}>
+                      <TableCell data-label="Slug" style={isLast ? lastTd : tdStyle}>
                         <span style={{ fontFamily: "'SF Mono', 'Consolas', monospace", fontSize: "14px", padding: "2px 8px", borderRadius: "4px", background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" }}>{plan.slug}</span>
                       </TableCell>
-                      <TableCell style={{ ...tdStyle, textAlign: "right", fontWeight: 600, color: "var(--color-primary)" }}>
+                      <TableCell data-label="Price" style={{ ...tdStyle, textAlign: "right", fontWeight: 600, color: "var(--color-primary)" }}>
                         {formatCurrency(plan.price)}
                       </TableCell>
                       <TableCell style={isLast ? lastTd : tdStyle}>

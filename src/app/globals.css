@@ -292,6 +292,54 @@ select {
   .stats-grid, .detail-grid, .hw-grid, .sys-grid, .analytics-grid, .net-stats, .vouchers-grid { grid-template-columns: 1fr !important; }
 }
 
+/* Tables become stacked cards on phones instead of forcing wide row scroll */
+@media (max-width: 640px) {
+  .table-mobile {
+    display: block;
+    width: 100%;
+  }
+  .table-mobile thead {
+    display: none;
+  }
+  .table-mobile tbody {
+    display: block;
+    width: 100%;
+  }
+  .table-mobile tbody > tr,
+  .table-mobile tbody tr {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-subtle);
+  }
+  .table-mobile tbody td,
+  .table-mobile tbody th {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 0;
+    border: none;
+    text-align: right;
+    white-space: normal !important;
+  }
+  .table-mobile tbody td::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+    text-align: left;
+    white-space: nowrap;
+  }
+}
+
 @theme inline {
   --font-sans: var(--font-figtree);
   --radius-sm: 4px;
