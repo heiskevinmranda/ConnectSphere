@@ -29,36 +29,59 @@ interface PlansSectionProps {
 export function PlansSection({ onSelectPlan }: PlansSectionProps) {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
     fetch("/api/plans/public")
       .then((r) => r.json())
       .then((d) => {
-        if (d.success) setPlans(d.data);
+        if (!cancelled) {
+          if (d.success) {
+            setPlans(d.data);
+            setError(null);
+          } else {
+            setError(d.message || "Could not load packages.");
+          }
+        }
       })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+      .catch(() => {
+        if (!cancelled) setError("Could not load packages. Check your connection.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
+
+  const handleRetry = () => {
+    setError(null);
+    setLoading(true);
+    setRefreshKey((k) => k + 1);
+  };
 
   return (
     <section
+      id="plans"
       style={{
-        padding: "40px 0",
+        padding: "64px 0",
         width: "100%",
       }}
     >
-      <div style={{ textAlign: "center", marginBottom: "32px" }}>
+      <div style={{ textAlign: "center", marginBottom: "40px" }}>
         <h2
+          className="display-lg"
           style={{
-            fontSize: "24px",
-            fontWeight: 700,
             color: "var(--color-text)",
-            marginBottom: "4px",
+            marginBottom: "8px",
           }}
         >
           Internet Packages
         </h2>
-        <p style={{ color: "var(--color-text-secondary)", fontSize: "15px" }}>
+        <p className="eyebrow" style={{ color: "var(--color-text-muted)" }}>
           Select the package that fits your needs
         </p>
       </div>
@@ -76,6 +99,64 @@ export function PlansSection({ onSelectPlan }: PlansSectionProps) {
             style={{ animation: "spin 1s linear infinite" }}
           />
         </div>
+      ) : error ? (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "12px",
+            padding: "56px 20px",
+            textAlign: "center",
+            background: "var(--color-bg-elevated)",
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius)",
+          }}
+        >
+          <p style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>
+            Could not load packages
+          </p>
+          <p style={{ fontSize: "13px", color: "var(--color-text-muted)", maxWidth: "420px", lineHeight: 1.5 }}>
+            {error}
+          </p>
+          <button
+            onClick={handleRetry}
+            style={{
+              marginTop: "4px",
+              padding: "10px 22px",
+              background: "var(--color-primary)",
+              color: "#000000",
+              border: "none",
+              borderRadius: "var(--radius)",
+              fontWeight: 600,
+              fontSize: "14px",
+              cursor: "pointer",
+            }}
+          >
+            Try Again
+          </button>
+        </div>
+      ) : plans.length === 0 ? (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "8px",
+            padding: "56px 20px",
+            textAlign: "center",
+            background: "var(--color-bg-elevated)",
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius)",
+          }}
+        >
+          <p style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)" }}>
+            No packages available right now
+          </p>
+          <p style={{ fontSize: "13px", color: "var(--color-text-muted)", maxWidth: "420px", lineHeight: 1.5 }}>
+            Please check back soon or contact support for assistance.
+          </p>
+        </div>
       ) : (
         <div
           className="plans-grid-responsive"
@@ -89,8 +170,8 @@ export function PlansSection({ onSelectPlan }: PlansSectionProps) {
               style={{
                 background: "var(--color-bg-elevated)",
                 border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius)",
-                padding: "20px",
+                borderRadius: "var(--radius-sm)",
+                padding: "28px 20px",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -116,6 +197,8 @@ export function PlansSection({ onSelectPlan }: PlansSectionProps) {
                 style={{
                   fontWeight: 600,
                   fontSize: "15px",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
                   color: "var(--color-text)",
                   marginBottom: "6px",
                 }}
@@ -161,7 +244,7 @@ export function PlansSection({ onSelectPlan }: PlansSectionProps) {
                 style={{
                   width: "100%",
                   background: "var(--color-primary)",
-                  color: "#ffffff",
+                  color: "#000000",
                   border: "none",
                   borderRadius: "var(--radius)",
                   padding: "10px 16px",

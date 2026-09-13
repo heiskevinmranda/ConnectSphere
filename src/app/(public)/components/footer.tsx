@@ -1,9 +1,16 @@
-export function Footer() {
+interface FooterProps {
+  onAdminClick: () => void;
+}
+
+export function Footer({ onAdminClick }: FooterProps) {
   return (
     <footer
+      onClick={onAdminClick}
+      role="presentation"
       style={{
         borderTop: "1px solid var(--color-border)",
-        background: "var(--color-bg-subtle)",
+        background: "#000000",
+        cursor: "default",
       }}
     >
       <div
@@ -14,15 +21,17 @@ export function Footer() {
       >
         <p
           style={{
+            fontFamily: "var(--font-display)",
             fontWeight: 700,
             fontSize: "16px",
+            letterSpacing: "0.08em",
             color: "var(--color-text)",
-            marginBottom: "4px",
+            marginBottom: "8px",
           }}
         >
-          ConnectSphere
+          CONNECTSPHERE
         </p>
-        <p style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+        <p className="eyebrow" style={{ fontSize: "11px", color: "var(--color-text-muted)" }}>
           {new Date().getFullYear()} ConnectSphere ISP. All rights reserved.
         </p>
       </div>

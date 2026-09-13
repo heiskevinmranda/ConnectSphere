@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { Loader2, Router, Wifi, Search, AlertCircle, RefreshCw } from "lucide-react";
@@ -9,12 +9,34 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { adminFetch } from "@/lib/admin-client";
 
-interface RouterItem { id: string; name: string; ip: string; model: string; status: string; cpu: number; memory: number; uptime: string; }
-interface AccessPoint { id: string; name: string; ssid: string; status: string; signal: number; clients: number; }
+interface DeviceItem {
+  id: number;
+  name: string;
+  type: "router" | "access_point";
+  model: string | null;
+  ip: string | null;
+  macAddress: string | null;
+  serialNumber: string | null;
+  location: string | null;
+  firmware: string | null;
+  status: "online" | "offline";
+  lastSeenAt: string | null;
+}
+
+function lastSeenLabel(lastSeenAt: string | null): string {
+  if (!lastSeenAt) return "Never observed";
+  const diffMs = Date.now() - new Date(lastSeenAt).getTime();
+  if (diffMs < 60_000) return "Last seen just now";
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 60) return `Last seen ${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `Last seen ${hours}h ago`;
+  return `Last seen ${Math.floor(hours / 24)}d ago`;
+}
 
 export default function RoutersPage() {
-  const [routers, setRouters] = useState<RouterItem[]>([]);
-  const [aps, setAps] = useState<AccessPoint[]>([]);
+  const [routers, setRouters] = useState<DeviceItem[]>([]);
+  const [aps, setAps] = useState<DeviceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -26,8 +48,8 @@ export default function RoutersPage() {
     (async () => {
       try {
         const [rt, ap] = await Promise.all([
-          adminFetch<RouterItem[]>("/api/admin/network/routers"),
-          adminFetch<AccessPoint[]>("/api/admin/network/access-points"),
+          adminFetch<DeviceItem[]>("/api/admin/network/routers"),
+          adminFetch<DeviceItem[]>("/api/admin/network/access-points"),
         ]);
         if (!cancelled) {
           setRouters(rt ?? []);
@@ -56,17 +78,18 @@ export default function RoutersPage() {
     setRefreshKey((k) => k + 1);
   };
 
-  const filteredRouters = routers.filter((r) => {
-    if (search && !r.name.toLowerCase().includes(search.toLowerCase()) && !r.ip.includes(search)) return false;
-    if (filter !== "all" && r.status !== filter) return false;
+  const matches = (d: DeviceItem): boolean => {
+    if (search) {
+      const haystack =
+        `${d.name} ${d.ip ?? ""} ${d.model ?? ""} ${d.macAddress ?? ""} ${d.location ?? ""}`.toLowerCase();
+      if (!haystack.includes(search.toLowerCase())) return false;
+    }
+    if (filter !== "all" && d.status !== filter) return false;
     return true;
-  });
+  };
 
-  const filteredAps = aps.filter((a) => {
-    if (search && !a.name.toLowerCase().includes(search.toLowerCase()) && !a.ssid.toLowerCase().includes(search.toLowerCase())) return false;
-    if (filter !== "all" && a.status !== filter) return false;
-    return true;
-  });
+  const filteredRouters = routers.filter(matches);
+  const filteredAps = aps.filter(matches);
 
   if (loading) {
     return <div style={{ display: "flex", justifyContent: "center", padding: "80px 0" }} role="status" aria-label="Loading hardware status"><Loader2 className="h-8 w-8" style={{ color: "var(--color-primary)", animation: "spin 1s linear infinite" }} /></div>;
@@ -75,16 +98,13 @@ export default function RoutersPage() {
   if (error) {
     return (
       <div>
-        <div style={{ marginBottom: "24px" }}>
-          <h1 style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text)", marginBottom: "4px" }}>Routers &amp; Access Points</h1>
-          <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>Monitor hardware and wireless infrastructure</p>
-        </div>
+        <PageHeader />
         <Card>
           <CardContent style={{ padding: "48px 20px", textAlign: "center" }}>
             <AlertCircle className="h-10 w-10" style={{ margin: "0 auto 16px", color: "var(--color-error)" }} />
-            <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>Failed to load hardware status</p>
-            <p style={{ fontSize: "13px", color: "var(--color-text-muted)", marginBottom: "20px" }}>{error}</p>
-            <Button onClick={handleRetry} style={{ background: "var(--color-primary)", color: "#fff" }}>
+            <p style={{ fontSize: "16px", fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>Failed to load hardware status</p>
+            <p style={{ fontSize: "15px", color: "var(--color-text-muted)", marginBottom: "20px" }}>{error}</p>
+            <Button onClick={handleRetry} style={{ background: "var(--color-primary)", color: "#000" }}>
               <RefreshCw className="h-4 w-4" style={{ marginRight: "6px" }} /> Retry
             </Button>
           </CardContent>
@@ -93,31 +113,26 @@ export default function RoutersPage() {
     );
   }
 
-  const renderBar = (label: string, value: number, color: string) => (
-    <div style={{ marginTop: "10px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-        <span style={{ fontSize: "11px", color: "var(--color-text-muted)" }}>{label}</span>
-        <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-text)" }}>{value}%</span>
-      </div>
-      <div style={{ width: "100%", height: "5px", borderRadius: "3px", background: "var(--color-bg-subtle)", overflow: "hidden" }}>
-        <div style={{ height: "100%", borderRadius: "3px", background: color, width: value + "%", transition: "width 0.3s ease" }} />
-      </div>
-    </div>
+  const statusBadge = (status: string) => (
+    <Badge style={{ background: status === "online" ? "var(--color-success-surface)" : "var(--color-error-surface)", color: status === "online" ? "var(--color-success)" : "var(--color-error)", fontSize: "12px", textTransform: "capitalize" }}>{status}</Badge>
   );
 
   return (
     <div>
-      <div style={{ marginBottom: "24px" }}>
-        <h1 style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text)", marginBottom: "4px" }}>Routers & Access Points</h1>
-        <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>Monitor hardware and wireless infrastructure</p>
-      </div>
+      <PageHeader />
       <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "24px", flexWrap: "wrap" }}>
         <div style={{ position: "relative", flex: 1, minWidth: "200px" }}>
           <Search className="h-4 w-4" style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)" }} />
-          <Input placeholder="Search by name, IP, or SSID..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ paddingLeft: "32px" }} />
+          <Input
+            placeholder="Search by name, IP, model, MAC, or location..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            aria-label="Search devices"
+            style={{ paddingLeft: "32px" }}
+          />
         </div>
         <Select value={filter} onValueChange={(v) => setFilter(v ?? "all")}>
-          <SelectTrigger style={{ minWidth: "140px" }}><SelectValue placeholder="All" /></SelectTrigger>
+          <SelectTrigger style={{ minWidth: "140px" }} aria-label="Filter by status"><SelectValue placeholder="All" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="online">Online</SelectItem>
@@ -125,7 +140,8 @@ export default function RoutersPage() {
           </SelectContent>
         </Select>
       </div>
-      <h3 style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)", marginBottom: "12px" }}>Routers ({filteredRouters.length})</h3>
+
+      <h3 style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)", marginBottom: "12px" }}>Routers ({filteredRouters.length})</h3>
       <div className="hw-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px", marginBottom: "32px" }}>
         {filteredRouters.map((router) => (
           <Card key={router.id}>
@@ -134,23 +150,29 @@ export default function RoutersPage() {
                 <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: "var(--color-primary-surface)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Router className="h-4 w-4" style={{ color: "var(--color-primary)" }} />
                 </div>
-                <div>
-                  <h4 style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text)" }}>{router.name}</h4>
-                  <p style={{ fontSize: "11px", color: "var(--color-text-muted)" }}>{router.model} &middot; {router.ip}</p>
+                <div style={{ minWidth: 0 }}>
+                  <h4 style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)" }}>{router.name}</h4>
+                  <p style={{ fontSize: "12px", color: "var(--color-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {router.model ?? "Model unknown"}{router.ip ? ` · ${router.ip}` : ""}
+                  </p>
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                <Badge style={{ background: router.status === "online" ? "var(--color-success-surface)" : "var(--color-error-surface)", color: router.status === "online" ? "var(--color-success)" : "var(--color-error)", fontSize: "11px", textTransform: "capitalize" }}>{router.status}</Badge>
-                <span style={{ fontSize: "11px", color: "var(--color-text-muted)", marginLeft: "auto" }}>Uptime: {router.uptime}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+                {statusBadge(router.status)}
+                <span style={{ fontSize: "12px", color: "var(--color-text-muted)", marginLeft: "auto" }}>{lastSeenLabel(router.lastSeenAt)}</span>
               </div>
-              {renderBar("CPU", router.cpu, "var(--color-primary)")}
-              {renderBar("Memory", router.memory, "var(--color-success)")}
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "12px", color: "var(--color-text-muted)" }}>
+                <span>Location: {router.location ?? "—"}</span>
+                <span>MAC: {router.macAddress ?? "—"}</span>
+                <span>Firmware: {router.firmware ?? "—"}</span>
+              </div>
             </CardContent>
           </Card>
         ))}
-        {filteredRouters.length === 0 && <p style={{ gridColumn: "1/-1", textAlign: "center", padding: "32px", color: "var(--color-text-muted)", fontSize: "13px" }}>No routers found</p>}
+        {filteredRouters.length === 0 && <p style={{ gridColumn: "1/-1", textAlign: "center", padding: "32px", color: "var(--color-text-muted)", fontSize: "15px" }}>No routers found</p>}
       </div>
-      <h3 style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)", marginBottom: "12px" }}>Access Points ({filteredAps.length})</h3>
+
+      <h3 style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)", marginBottom: "12px" }}>Access Points ({filteredAps.length})</h3>
       <div className="hw-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
         {filteredAps.map((ap) => (
           <Card key={ap.id}>
@@ -159,21 +181,32 @@ export default function RoutersPage() {
                 <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: "var(--color-success-surface)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Wifi className="h-4 w-4" style={{ color: "var(--color-success)" }} />
                 </div>
-                <div>
-                  <h4 style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text)" }}>{ap.name}</h4>
-                  <p style={{ fontSize: "11px", color: "var(--color-text-muted)" }}>SSID: {ap.ssid}</p>
+                <div style={{ minWidth: 0 }}>
+                  <h4 style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)" }}>{ap.name}</h4>
+                  <p style={{ fontSize: "12px", color: "var(--color-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {ap.model ?? "Model unknown"}{ap.ip ? ` · ${ap.ip}` : ""}
+                  </p>
                 </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "12px", color: "var(--color-text-muted)" }}>
-                <Badge style={{ background: ap.status === "online" ? "var(--color-success-surface)" : "var(--color-error-surface)", color: ap.status === "online" ? "var(--color-success)" : "var(--color-error)", fontSize: "11px", textTransform: "capitalize" }}>{ap.status}</Badge>
-                <span>Signal: {ap.signal}%</span>
-                <span>Clients: {ap.clients}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "14px", color: "var(--color-text-muted)" }}>
+                {statusBadge(ap.status)}
+                <span>Location: {ap.location ?? "—"}</span>
+                <span style={{ marginLeft: "auto" }}>{lastSeenLabel(ap.lastSeenAt)}</span>
               </div>
             </CardContent>
           </Card>
         ))}
-        {filteredAps.length === 0 && <p style={{ gridColumn: "1/-1", textAlign: "center", padding: "32px", color: "var(--color-text-muted)", fontSize: "13px" }}>No access points found</p>}
+        {filteredAps.length === 0 && <p style={{ gridColumn: "1/-1", textAlign: "center", padding: "32px", color: "var(--color-text-muted)", fontSize: "15px" }}>No access points found</p>}
       </div>
+    </div>
+  );
+}
+
+function PageHeader() {
+  return (
+    <div style={{ marginBottom: "24px" }}>
+      <h1 style={{ fontSize: "24px", fontWeight: 700, color: "var(--color-text)", marginBottom: "4px" }}>Routers & Access Points</h1>
+      <p style={{ fontSize: "15px", color: "var(--color-text-muted)" }}>Device inventory and connection status</p>
     </div>
   );
 }

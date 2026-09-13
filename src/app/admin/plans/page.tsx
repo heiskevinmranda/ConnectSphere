@@ -123,17 +123,17 @@ export default function PlansPage() {
 
   const filtered = plans.filter((p) => filter === "all" || (filter === "active" ? p.isActive : !p.isActive));
 
-  const thStyle: React.CSSProperties = { padding: "12px 16px", fontSize: "12px", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "left", borderBottom: "1px solid var(--color-border)", background: "var(--color-bg-subtle)" };
-  const tdStyle: React.CSSProperties = { padding: "14px 16px", fontSize: "13px", borderBottom: "1px solid var(--color-border-light)", verticalAlign: "middle" };
+  const thStyle: React.CSSProperties = { padding: "12px 16px", fontSize: "14px", fontWeight: 600, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "left", borderBottom: "1px solid var(--color-border)", background: "var(--color-bg-subtle)" };
+  const tdStyle: React.CSSProperties = { padding: "14px 16px", fontSize: "15px", borderBottom: "1px solid var(--color-border-light)", verticalAlign: "middle" };
   const lastTd: React.CSSProperties = { ...tdStyle, borderBottom: "none" };
-  const labelStyle: React.CSSProperties = { display: "block", fontSize: "12px", fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: "6px" };
+  const labelStyle: React.CSSProperties = { display: "block", fontSize: "14px", fontWeight: 600, color: "var(--color-text-secondary)", marginBottom: "6px" };
 
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
         <div>
-          <h1 style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text)", marginBottom: "4px" }}>Plans</h1>
-          <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>Manage internet packages and pricing</p>
+          <h1 style={{ fontSize: "24px", fontWeight: 700, color: "var(--color-text)", marginBottom: "4px" }}>Plans</h1>
+          <p style={{ fontSize: "15px", color: "var(--color-text-muted)" }}>Manage internet packages and pricing</p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <Select value={filter} onValueChange={(v) => setFilter(v ?? "all")}>
@@ -144,7 +144,7 @@ export default function PlansPage() {
               <SelectItem value="inactive">Inactive</SelectItem>
             </SelectContent>
           </Select>
-          <button onClick={openCreate} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "8px 16px", background: "var(--color-primary)", color: "#fff", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
+          <button onClick={openCreate} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "10px 20px", background: "var(--color-primary)", color: "#000", border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 600, cursor: "pointer" }}>
             <Plus className="h-4 w-4" /> Add Plan
           </button>
         </div>
@@ -222,17 +222,17 @@ export default function PlansPage() {
                   onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
                   style={{ width: "16px", height: "16px", accentColor: "var(--color-primary)", cursor: "pointer" }}
                 />
-                <label htmlFor="plan-active" style={{ fontSize: "13px", color: "var(--color-text-secondary)", cursor: "pointer" }}>
+                <label htmlFor="plan-active" style={{ fontSize: "15px", color: "var(--color-text-secondary)", cursor: "pointer" }}>
                   Visible to customers on the public site
                 </label>
               </div>
             </div>
           </div>
           <DialogFooter style={{ padding: "20px 24px 24px" }}>
-            <button onClick={() => setFormOpen(false)} disabled={saving} style={{ padding: "9px 20px", border: "1px solid var(--color-border)", borderRadius: "8px", fontSize: "13px", fontWeight: 500, background: "var(--color-bg-elevated)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
+            <button onClick={() => setFormOpen(false)} disabled={saving} style={{ padding: "9px 20px", border: "1px solid var(--color-border)", borderRadius: "8px", fontSize: "15px", fontWeight: 500, background: "var(--color-bg-elevated)", color: "var(--color-text-secondary)", cursor: "pointer" }}>
               Cancel
             </button>
-            <button onClick={handleSave} disabled={saving || !form.name.trim()} style={{ padding: "9px 24px", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 600, background: "var(--color-primary)", color: "#fff", cursor: "pointer", opacity: saving || !form.name.trim() ? 0.5 : 1 }}>
+            <button onClick={handleSave} disabled={saving || !form.name.trim()} style={{ padding: "10px 26px", border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 600, background: "var(--color-primary)", color: "#000", cursor: "pointer", opacity: saving || !form.name.trim() ? 0.5 : 1 }}>
               {saving ? "Saving..." : editingId ? "Update Plan" : "Create Plan"}
             </button>
           </DialogFooter>
@@ -254,9 +254,9 @@ export default function PlansPage() {
         <Card>
           <CardContent style={{ padding: "48px 20px", textAlign: "center" }}>
             <AlertCircle className="h-10 w-10" style={{ margin: "0 auto 16px", color: "var(--color-error)" }} />
-            <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>Failed to load plans</p>
-            <p style={{ fontSize: "13px", color: "var(--color-text-muted)", marginBottom: "20px" }}>{error}</p>
-            <Button onClick={reload} style={{ background: "var(--color-primary)", color: "#fff" }}>
+            <p style={{ fontSize: "16px", fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>Failed to load plans</p>
+            <p style={{ fontSize: "15px", color: "var(--color-text-muted)", marginBottom: "20px" }}>{error}</p>
+            <Button onClick={reload} style={{ background: "var(--color-primary)", color: "#000" }}>
               <RefreshCw className="h-4 w-4" style={{ marginRight: "6px" }} /> Retry
             </Button>
           </CardContent>
@@ -269,8 +269,8 @@ export default function PlansPage() {
         <Card>
           <CardContent style={{ padding: "64px 20px", textAlign: "center" }}>
             <Package className="h-12 w-12" style={{ margin: "0 auto 16px", color: "var(--color-text-muted)", opacity: 0.3 }} />
-            <p style={{ fontSize: "15px", fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: "4px" }}>No plans found</p>
-            <p style={{ fontSize: "13px", color: "var(--color-text-muted)" }}>{filter !== "all" ? "Try changing the filter" : "Create your first plan to get started"}</p>
+            <p style={{ fontSize: "16px", fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: "4px" }}>No plans found</p>
+            <p style={{ fontSize: "15px", color: "var(--color-text-muted)" }}>{filter !== "all" ? "Try changing the filter" : "Create your first plan to get started"}</p>
           </CardContent>
         </Card>
       ) : (
@@ -302,13 +302,13 @@ export default function PlansPage() {
                           <div>
                             <span style={{ fontWeight: 600, color: "var(--color-text)" }}>{plan.name}</span>
                             {plan.description && (
-                              <p style={{ fontSize: "12px", color: "var(--color-text-muted)", marginTop: "2px" }}>{plan.description}</p>
+                              <p style={{ fontSize: "14px", color: "var(--color-text-muted)", marginTop: "2px" }}>{plan.description}</p>
                             )}
                           </div>
                         </div>
                       </TableCell>
                       <TableCell style={isLast ? lastTd : tdStyle}>
-                        <span style={{ fontFamily: "'SF Mono', 'Consolas', monospace", fontSize: "12px", padding: "2px 8px", borderRadius: "4px", background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" }}>{plan.slug}</span>
+                        <span style={{ fontFamily: "'SF Mono', 'Consolas', monospace", fontSize: "14px", padding: "2px 8px", borderRadius: "4px", background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" }}>{plan.slug}</span>
                       </TableCell>
                       <TableCell style={{ ...tdStyle, textAlign: "right", fontWeight: 600, color: "var(--color-primary)" }}>
                         {formatCurrency(plan.price)}
@@ -317,7 +317,7 @@ export default function PlansPage() {
                         <span style={{ color: "var(--color-text-secondary)" }}>{formatDuration(plan.duration)}</span>
                       </TableCell>
                       <TableCell style={isLast ? lastTd : tdStyle}>
-                        <Badge style={{ background: plan.isActive ? "var(--color-success-surface)" : "var(--color-bg-subtle)", color: plan.isActive ? "var(--color-success)" : "var(--color-text-muted)", fontSize: "11px", fontWeight: 600, padding: "3px 10px" }}>
+                        <Badge style={{ background: plan.isActive ? "var(--color-success-surface)" : "var(--color-bg-subtle)", color: plan.isActive ? "var(--color-success)" : "var(--color-text-muted)", fontSize: "12px", fontWeight: 600, padding: "3px 10px" }}>
                           {plan.isActive ? "Active" : "Inactive"}
                         </Badge>
                       </TableCell>
@@ -344,7 +344,7 @@ export default function PlansPage() {
       )}
 
       {!loading && filtered.length > 0 && (
-        <p style={{ fontSize: "13px", color: "var(--color-text-muted)", marginTop: "12px", textAlign: "right" }}>
+        <p style={{ fontSize: "15px", color: "var(--color-text-muted)", marginTop: "12px", textAlign: "right" }}>
           Showing {filtered.length} plan{filtered.length !== 1 ? "s" : ""}
         </p>
       )}

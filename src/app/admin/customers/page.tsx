@@ -168,7 +168,7 @@ export default function CustomersPage() {
 
   const thStyle: React.CSSProperties = {
     padding: "12px 16px",
-    fontSize: "12px",
+    fontSize: "14px",
     fontWeight: 600,
     color: "var(--color-text-muted)",
     textTransform: "uppercase",
@@ -179,7 +179,7 @@ export default function CustomersPage() {
   };
   const tdStyle: React.CSSProperties = {
     padding: "14px 16px",
-    fontSize: "13px",
+    fontSize: "15px",
     borderBottom: "1px solid var(--color-border-light)",
     verticalAlign: "middle",
   };
@@ -189,8 +189,8 @@ export default function CustomersPage() {
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
         <div>
-          <h1 style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text)", marginBottom: "4px" }}>Customers</h1>
-          <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>Manage your subscribers and payment records</p>
+          <h1 style={{ fontSize: "24px", fontWeight: 700, color: "var(--color-text)", marginBottom: "4px" }}>Customers</h1>
+          <p style={{ fontSize: "15px", color: "var(--color-text-muted)" }}>Manage your subscribers and payment records</p>
         </div>
         <Button
           variant="outline"
@@ -199,7 +199,7 @@ export default function CustomersPage() {
           aria-label="Export customers as CSV"
           style={{ borderColor: "var(--color-border)", gap: "6px" }}
         >
-          <Download className="h-4 w-4" style={{ animation: exporting ? undefined : undefined }} />
+          <Download className="h-4 w-4" style={{ animation: exporting ? "spin 1s linear infinite" : undefined }} />
           {exporting ? "Exporting..." : "Export CSV"}
         </Button>
       </div>
@@ -232,7 +232,7 @@ export default function CustomersPage() {
                 <SelectItem value="pending_payment">Pending Payment</SelectItem>
               </SelectContent>
             </Select>
-            <span style={{ fontSize: "13px", color: "var(--color-text-muted)", whiteSpace: "nowrap" }} aria-live="polite">
+            <span style={{ fontSize: "15px", color: "var(--color-text-muted)", whiteSpace: "nowrap" }} aria-live="polite">
               {total} result{total !== 1 ? "s" : ""}
             </span>
           </div>
@@ -243,9 +243,9 @@ export default function CustomersPage() {
         <Card>
           <CardContent style={{ padding: "48px 20px", textAlign: "center" }}>
             <AlertCircle className="h-10 w-10" style={{ margin: "0 auto 16px", color: "var(--color-error)" }} />
-            <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>Failed to load customers</p>
-            <p style={{ fontSize: "13px", color: "var(--color-text-muted)", marginBottom: "20px" }}>{error}</p>
-            <Button onClick={handleRetry} style={{ background: "var(--color-primary)", color: "#fff" }}>
+            <p style={{ fontSize: "16px", fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>Failed to load customers</p>
+            <p style={{ fontSize: "15px", color: "var(--color-text-muted)", marginBottom: "20px" }}>{error}</p>
+            <Button onClick={handleRetry} style={{ background: "var(--color-primary)", color: "#000" }}>
               <RefreshCw className="h-4 w-4" style={{ marginRight: "6px" }} /> Retry
             </Button>
           </CardContent>
@@ -258,8 +258,8 @@ export default function CustomersPage() {
         <Card>
           <CardContent style={{ padding: "64px 20px", textAlign: "center" }}>
             <Users className="h-12 w-12" style={{ margin: "0 auto 16px", color: "var(--color-text-muted)", opacity: 0.3 }} />
-            <p style={{ fontSize: "15px", fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: "4px" }}>No customers found</p>
-            <p style={{ fontSize: "13px", color: "var(--color-text-muted)" }}>Try adjusting your search or filter criteria</p>
+            <p style={{ fontSize: "16px", fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: "4px" }}>No customers found</p>
+            <p style={{ fontSize: "15px", color: "var(--color-text-muted)" }}>Try adjusting your search or filter criteria</p>
           </CardContent>
         </Card>
       ) : (
@@ -284,13 +284,13 @@ export default function CustomersPage() {
                   return (
                     <TableRow key={`${u.type}-${u.id}`} style={{ background: idx % 2 === 0 ? "transparent" : "var(--color-bg-subtle)" }}>
                       <TableCell style={isLast ? lastTd : tdStyle}>
-                        <span style={{ fontFamily: "'SF Mono', 'Consolas', monospace", fontSize: "13px", fontWeight: 500, color: "var(--color-text)" }}>{u.phoneNumber}</span>
+                        <span style={{ fontFamily: "'SF Mono', 'Consolas', monospace", fontSize: "15px", fontWeight: 500, color: "var(--color-text)" }}>{u.phoneNumber}</span>
                       </TableCell>
                       <TableCell style={isLast ? lastTd : tdStyle}>
                         <span style={{ textTransform: "capitalize", fontWeight: 500 }}>{u.plan}</span>
                       </TableCell>
                       <TableCell style={isLast ? lastTd : tdStyle}>
-                        <Badge style={{ background: sc.bg, color: sc.color, fontSize: "11px", fontWeight: 600, textTransform: "capitalize", padding: "3px 10px" }}>
+                        <Badge style={{ background: sc.bg, color: sc.color, fontSize: "12px", fontWeight: 600, textTransform: "capitalize", padding: "3px 10px" }}>
                           {u.status.replace("_", " ")}
                         </Badge>
                       </TableCell>
@@ -310,7 +310,7 @@ export default function CustomersPage() {
                       </TableCell>
                       <TableCell style={isLast ? lastTd : tdStyle}>
                         {u.voucherCode || u.paymentReference ? (
-                          <span style={{ fontFamily: "'SF Mono', 'Consolas', monospace", fontSize: "12px", padding: "2px 8px", borderRadius: "4px", background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" }}>
+                          <span style={{ fontFamily: "'SF Mono', 'Consolas', monospace", fontSize: "14px", padding: "2px 8px", borderRadius: "4px", background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" }}>
                             {(u.voucherCode ?? u.paymentReference ?? "").slice(0, 12)}
                           </span>
                         ) : (
@@ -351,7 +351,7 @@ export default function CustomersPage() {
 
       {!loading && !error && totalPages > 1 && (
         <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "16px", padding: "12px 0" }} aria-label="Pagination">
-          <p style={{ fontSize: "13px", color: "var(--color-text-muted)" }}>Page {page} of {totalPages}</p>
+          <p style={{ fontSize: "15px", color: "var(--color-text-muted)" }}>Page {page} of {totalPages}</p>
           <div style={{ display: "flex", gap: "8px" }}>
             <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} aria-label="Previous page" style={{ borderColor: "var(--color-border)", gap: "4px" }}>
               <ChevronLeft className="h-4 w-4" /> Previous

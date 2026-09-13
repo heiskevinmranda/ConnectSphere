@@ -1,9 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
-import {
-  Loader2, Wifi, Activity, AlertTriangle, RefreshCw, ServerCrash,
-} from "lucide-react";
+import { Loader2, Wifi, Users, Ticket, AlertTriangle, RefreshCw, ServerCrash, Info } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,17 +10,12 @@ import { adminFetch } from "@/lib/admin-client";
 interface NetworkOverview {
   routers: { total: number; online: number; offline: number };
   accessPoints: { total: number; online: number; offline: number };
-  clients: { total: number; maxCapacity: number };
-  bandwidth: {
-    download: number;
-    upload: number;
-    capacityDown: number;
-    capacityUp: number;
-    utilizationDown: number;
-    utilizationUp: number;
-  };
+  activeSubscriptions: number;
+  vouchersAvailable: number;
+  vouchersByTier: { price: number; available: number }[];
+  subscriptionsToday: number;
   activeAlerts: number;
-  totalTrafficToday: string;
+  telemetryConnected: boolean;
 }
 
 interface NetworkAlert {
@@ -42,6 +35,7 @@ const sevColor: Record<string, string> = {
 
 function formatAlertAge(timestamp: string): string {
   const diffMs = Date.now() - new Date(timestamp).getTime();
+  if (diffMs < 60_000) return "just now";
   const minutes = Math.floor(diffMs / 60000);
   if (minutes < 60) return `${minutes}m ago`;
   const hours = Math.floor(minutes / 60);
@@ -95,7 +89,7 @@ export default function NetworkPage() {
     };
   }, [refreshKey]);
 
-  // Poll for fresh telemetry every 30 seconds.
+  // Refresh fresh aggregates every 30 seconds.
   useEffect(() => {
     const interval = setInterval(() => {
       setRefreshKey((k) => k + 1);
@@ -118,9 +112,9 @@ export default function NetworkPage() {
         <Card>
           <CardContent style={{ padding: "48px 20px", textAlign: "center" }}>
             <ServerCrash className="h-10 w-10" style={{ margin: "0 auto 16px", color: "var(--color-error)" }} />
-            <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>Failed to load network data</p>
-            <p style={{ fontSize: "13px", color: "var(--color-text-muted)", marginBottom: "20px" }}>{error}</p>
-            <Button onClick={handleRefresh} style={{ background: "var(--color-primary)", color: "#fff" }}>
+            <p style={{ fontSize: "16px", fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>Failed to load network data</p>
+            <p style={{ fontSize: "15px", color: "var(--color-text-muted)", marginBottom: "20px" }}>{error}</p>
+            <Button onClick={handleRefresh} style={{ background: "var(--color-primary)", color: "#000" }}>
               <RefreshCw className="h-4 w-4" style={{ marginRight: "6px" }} /> Retry
             </Button>
           </CardContent>
@@ -128,6 +122,10 @@ export default function NetworkPage() {
       </div>
     );
   }
+
+  const lowTier = overview.vouchersByTier
+    .filter((t) => t.available > 0)
+    .sort((a, b) => a.price - b.price)[0];
 
   const statCards = [
     {
@@ -139,25 +137,29 @@ export default function NetworkPage() {
       iconBg: "var(--color-success-surface)",
     },
     {
-      title: "Connected Clients",
-      value: String(overview.clients.total),
-      sub: `Capacity ${overview.clients.maxCapacity}`,
-      icon: Activity,
+      title: "Active Subscriptions",
+      value: String(overview.activeSubscriptions),
+      sub: `${overview.subscriptionsToday} started today`,
+      icon: Users,
       iconColor: "var(--color-primary)",
       iconBg: "var(--color-primary-surface)",
     },
     {
-      title: "Bandwidth",
-      value: `${overview.bandwidth.download.toFixed(1)} Mbps`,
-      sub: `Up: ${overview.bandwidth.upload.toFixed(1)} Mbps · ↓${overview.bandwidth.utilizationDown}% ↑${overview.bandwidth.utilizationUp}%`,
-      icon: Activity,
+      title: "Vouchers In Stock",
+      value: String(overview.vouchersAvailable),
+      sub: lowTier
+        ? `Cheapest stock: TSh ${lowTier.price.toLocaleString()} (${lowTier.available})`
+        : "Stock exhausted",
+      icon: Ticket,
       iconColor: "var(--color-warning)",
       iconBg: "var(--color-warning-surface)",
     },
     {
       title: "Active Alerts",
       value: String(alerts.filter((a) => a.severity !== "info").length),
-      sub: `Traffic today: ${overview.totalTrafficToday}`,
+      sub: overview.telemetryConnected
+        ? "Traffic telemetry connected"
+        : "Telemetry: waiting for router integration",
       icon: AlertTriangle,
       iconColor:
         alerts.some((a) => a.severity === "critical")
@@ -174,6 +176,30 @@ export default function NetworkPage() {
     <div>
       <PageHeader onRefresh={handleRefresh} refreshing={refreshing} />
 
+      {!overview.telemetryConnected && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            padding: "10px 14px",
+            marginBottom: "20px",
+            borderRadius: "8px",
+            background: "var(--color-bg-subtle)",
+            color: "var(--color-text-muted)",
+            fontSize: "15px",
+          }}
+          role="note"
+        >
+          <Info className="h-4 w-4" style={{ flexShrink: 0 }} />
+          <span>
+            Metrics are derived from real portal data (subscriptions, vouchers,
+            devices). Live traffic/bandwidth figures appear once a router
+            integration reports telemetry.
+          </span>
+        </div>
+      )}
+
       <div className="net-stats" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "24px" }}>
         {statCards.map((c) => {
           const Icon = c.icon;
@@ -185,9 +211,9 @@ export default function NetworkPage() {
                     <Icon className="h-5 w-5" style={{ color: c.iconColor }} />
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <p style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>{c.title}</p>
-                    <p style={{ fontSize: "20px", fontWeight: 700, color: "var(--color-text)" }}>{c.value}</p>
-                    {c.sub && <p style={{ fontSize: "11px", color: "var(--color-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.sub}</p>}
+                    <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>{c.title}</p>
+                    <p style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text)" }}>{c.value}</p>
+                    {c.sub && <p style={{ fontSize: "12px", color: "var(--color-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.sub}</p>}
                   </div>
                 </div>
               </CardContent>
@@ -198,21 +224,21 @@ export default function NetworkPage() {
 
       <Card>
         <CardContent style={{ padding: "20px" }}>
-          <h3 style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)", marginBottom: "16px" }}>Network Alerts</h3>
+          <h3 style={{ fontSize: "16px", fontWeight: 600, color: "var(--color-text)", marginBottom: "16px" }}>System Alerts</h3>
           {alerts.length === 0 ? (
-            <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>No alerts. System is operating normally.</p>
+            <p style={{ fontSize: "15px", color: "var(--color-text-muted)" }}>No alerts. Everything is operating normally.</p>
           ) : (
             <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "10px" }}>
               {alerts.map((a) => (
                 <li key={a.id} style={{ display: "flex", alignItems: "flex-start", gap: "12px", padding: "14px", borderRadius: "8px", background: "var(--color-bg-subtle)" }}>
                   <AlertTriangle className="h-4 w-4" style={{ marginTop: "2px", color: sevColor[a.severity] || "var(--color-text-muted)", flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: "13px", fontWeight: 500, color: "var(--color-text)" }}>{a.message}</p>
-                    <p style={{ fontSize: "12px", color: "var(--color-text-muted)", marginTop: "2px" }}>
+                    <p style={{ fontSize: "15px", fontWeight: 500, color: "var(--color-text)" }}>{a.message}</p>
+                    <p style={{ fontSize: "14px", color: "var(--color-text-muted)", marginTop: "2px" }}>
                       {a.device} · {formatAlertAge(a.timestamp)}
                     </p>
                   </div>
-                  <Badge style={{ background: sevColor[a.severity] ? `${sevColor[a.severity]}15` : "var(--color-bg-subtle)", color: sevColor[a.severity] || "var(--color-text-muted)", fontSize: "11px", textTransform: "capitalize" }}>{a.severity}</Badge>
+                  <Badge style={{ background: sevColor[a.severity] ? `${sevColor[a.severity]}15` : "var(--color-bg-subtle)", color: sevColor[a.severity] || "var(--color-text-muted)", fontSize: "12px", textTransform: "capitalize" }}>{a.severity}</Badge>
                 </li>
               ))}
             </ul>
@@ -227,8 +253,8 @@ function PageHeader({ onRefresh, refreshing }: { onRefresh: () => void; refreshi
   return (
     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
       <div>
-        <h1 style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text)", marginBottom: "4px" }}>Network</h1>
-        <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>Real-time network monitoring and alerts</p>
+        <h1 style={{ fontSize: "24px", fontWeight: 700, color: "var(--color-text)", marginBottom: "4px" }}>Network</h1>
+        <p style={{ fontSize: "15px", color: "var(--color-text-muted)" }}>Live network status derived from portal data</p>
       </div>
       <Button
         variant="outline"

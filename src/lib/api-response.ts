@@ -7,16 +7,19 @@ export interface ApiResponse<T = unknown> {
   errors?: string[];
 }
 
+/** API responses must never be stored by browsers or proxies. */
+const NO_STORE_HEADERS = { "Cache-Control": "no-store" };
+
 export function apiSuccess<T>(data: T, message?: string, status = 200) {
   const response: ApiResponse<T> = { success: true, data };
   if (message) response.message = message;
-  return NextResponse.json(response, { status });
+  return NextResponse.json(response, { status, headers: NO_STORE_HEADERS });
 }
 
 export function apiError(message: string, status = 500, errors?: string[]) {
   const response: ApiResponse = { success: false, message };
   if (errors) response.errors = errors;
-  return NextResponse.json(response, { status });
+  return NextResponse.json(response, { status, headers: NO_STORE_HEADERS });
 }
 
 export function apiNotFound(message = "Resource not found") {

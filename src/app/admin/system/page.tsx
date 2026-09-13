@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import {
@@ -93,8 +93,8 @@ export default function SystemPage() {
   return (
     <div>
       <div style={{ marginBottom: "20px" }}>
-        <h1 style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text)", marginBottom: "4px" }}>System</h1>
-        <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>Health monitoring, audit trail and account security</p>
+        <h1 style={{ fontSize: "24px", fontWeight: 700, color: "var(--color-text)", marginBottom: "4px" }}>System</h1>
+        <p style={{ fontSize: "15px", color: "var(--color-text-muted)" }}>Health monitoring, audit trail and account security</p>
       </div>
 
       <div role="tablist" aria-label="System sections" style={{ display: "flex", gap: "4px", borderBottom: "1px solid var(--color-border)", marginBottom: "20px", overflowX: "auto" }}>
@@ -113,7 +113,7 @@ export default function SystemPage() {
                 alignItems: "center",
                 gap: "7px",
                 padding: "10px 16px",
-                fontSize: "13px",
+                fontSize: "15px",
                 fontWeight: active ? 600 : 500,
                 color: active ? "var(--color-primary)" : "var(--color-text-muted)",
                 background: "none",
@@ -148,10 +148,9 @@ function HealthPanel() {
     let cancelled = false;
     (async () => {
       try {
-        const response = await fetch("/api/health");
-        const data = await response.json();
+        const payload = await adminFetch<HealthResponse>("/api/health");
         if (!cancelled) {
-          setHealth(data);
+          setHealth(payload);
           setError(null);
         }
       } catch {
@@ -209,11 +208,11 @@ function HealthPanel() {
             aria-hidden
             style={{ width: "10px", height: "10px", borderRadius: "50%", background: health?.status === "OK" ? "var(--color-success)" : "var(--color-error)", boxShadow: health?.status === "OK" ? "0 0 0 3px var(--color-success-surface)" : "0 0 0 3px var(--color-error-surface)" }}
           />
-          <span style={{ fontSize: "14px", fontWeight: 600, color: health?.status === "OK" ? "var(--color-success)" : "var(--color-error)" }} aria-live="polite">
+          <span style={{ fontSize: "15px", fontWeight: 600, color: health?.status === "OK" ? "var(--color-success)" : "var(--color-error)" }} aria-live="polite">
             {error ? "Status unknown" : health?.status === "OK" ? "All systems operational" : "Degraded performance"}
           </span>
           {health && (
-            <span style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+            <span style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>
               Checked {new Date(health.timestamp).toLocaleTimeString()}
             </span>
           )}
@@ -228,7 +227,7 @@ function HealthPanel() {
         <Card style={{ marginBottom: "16px" }}>
           <CardContent style={{ padding: "24px", display: "flex", alignItems: "center", gap: "12px" }}>
             <AlertCircle className="h-5 w-5" style={{ color: "var(--color-error)", flexShrink: 0 }} />
-            <p style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>{error}</p>
+            <p style={{ fontSize: "15px", color: "var(--color-text-secondary)" }}>{error}</p>
           </CardContent>
         </Card>
       ) : null}
@@ -244,14 +243,14 @@ function HealthPanel() {
                     <Icon className="h-5 w-5" style={{ color: c.ok ? "var(--color-success)" : "var(--color-error)" }} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)" }}>{c.label}</h3>
+                    <h3 style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)" }}>{c.label}</h3>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
                       <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: c.ok ? "var(--color-success)" : "var(--color-error)" }} />
-                      <span style={{ fontSize: "12px", fontWeight: 500, color: c.ok ? "var(--color-success)" : "var(--color-error)", textTransform: "capitalize" }}>
+                      <span style={{ fontSize: "14px", fontWeight: 500, color: c.ok ? "var(--color-success)" : "var(--color-error)", textTransform: "capitalize" }}>
                         {c.ok ? "Operational" : "Down"}
                       </span>
                     </div>
-                    <p style={{ fontSize: "11px", color: "var(--color-text-muted)", marginTop: "4px" }}>{c.detail}</p>
+                    <p style={{ fontSize: "12px", color: "var(--color-text-muted)", marginTop: "4px" }}>{c.detail}</p>
                   </div>
                 </div>
               </CardContent>
@@ -263,7 +262,7 @@ function HealthPanel() {
       {health && (
         <Card>
           <CardContent style={{ padding: "20px" }}>
-            <h3 style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)", marginBottom: "16px" }}>Runtime Information</h3>
+            <h3 style={{ fontSize: "16px", fontWeight: 600, color: "var(--color-text)", marginBottom: "16px" }}>Runtime Information</h3>
             <div>
               {[
                 { label: "Application version", value: health.version },
@@ -273,8 +272,8 @@ function HealthPanel() {
                 { label: "Payment provider", value: "AzamPay" },
               ].map((row, i) => (
                 <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderTop: i === 0 ? "none" : "1px solid var(--color-border-light)" }}>
-                  <span style={{ fontSize: "13px", color: "var(--color-text-muted)" }}>{row.label}</span>
-                  <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text)" }}>{row.value}</span>
+                  <span style={{ fontSize: "15px", color: "var(--color-text-muted)" }}>{row.label}</span>
+                  <span style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)" }}>{row.value}</span>
                 </div>
               ))}
             </div>
@@ -347,7 +346,7 @@ function AuditPanel() {
 
   const thStyle: React.CSSProperties = {
     padding: "12px 14px",
-    fontSize: "11px",
+    fontSize: "12px",
     fontWeight: 600,
     color: "var(--color-text-muted)",
     textTransform: "uppercase",
@@ -393,7 +392,7 @@ function AuditPanel() {
                 <SelectItem value="failure">Failure</SelectItem>
               </SelectContent>
             </Select>
-            <span style={{ fontSize: "12px", color: "var(--color-text-muted)", whiteSpace: "nowrap" }} aria-live="polite">
+            <span style={{ fontSize: "14px", color: "var(--color-text-muted)", whiteSpace: "nowrap" }} aria-live="polite">
               {total} event{total !== 1 ? "s" : ""}
             </span>
           </div>
@@ -404,9 +403,9 @@ function AuditPanel() {
         <Card>
           <CardContent style={{ padding: "40px 20px", textAlign: "center" }}>
             <AlertCircle className="h-9 w-9" style={{ margin: "0 auto 14px", color: "var(--color-error)" }} />
-            <p style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>Failed to load audit logs</p>
-            <p style={{ fontSize: "13px", color: "var(--color-text-muted)", marginBottom: "16px" }}>{error}</p>
-            <Button onClick={handleRetry} style={{ background: "var(--color-primary)", color: "#fff" }}>Retry</Button>
+            <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>Failed to load audit logs</p>
+            <p style={{ fontSize: "15px", color: "var(--color-text-muted)", marginBottom: "16px" }}>{error}</p>
+            <Button onClick={handleRetry} style={{ background: "var(--color-primary)", color: "#000" }}>Retry</Button>
           </CardContent>
         </Card>
       ) : loading ? (
@@ -417,8 +416,8 @@ function AuditPanel() {
         <Card>
           <CardContent style={{ padding: "56px 20px", textAlign: "center" }}>
             <ScrollText className="h-11 w-11" style={{ margin: "0 auto 14px", color: "var(--color-text-muted)", opacity: 0.3 }} />
-            <p style={{ fontSize: "14px", fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: "4px" }}>No audit events found</p>
-            <p style={{ fontSize: "13px", color: "var(--color-text-muted)" }}>Administrative actions will appear here as they happen</p>
+            <p style={{ fontSize: "15px", fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: "4px" }}>No audit events found</p>
+            <p style={{ fontSize: "15px", color: "var(--color-text-muted)" }}>Administrative actions will appear here as they happen</p>
           </CardContent>
         </Card>
       ) : (
@@ -444,16 +443,16 @@ function AuditPanel() {
                       </span>
                     </TableCell>
                     <TableCell style={tdStyle}>
-                      <span style={{ fontFamily: "'SF Mono', 'Consolas', monospace", fontSize: "12px", fontWeight: 600, color: "var(--color-primary)" }}>{log.action}</span>
+                      <span style={{ fontFamily: "'SF Mono', 'Consolas', monospace", fontSize: "14px", fontWeight: 600, color: "var(--color-primary)" }}>{log.action}</span>
                     </TableCell>
                     <TableCell style={tdStyle}>
                       <div>
                         <div style={{ fontSize: "12.5px", color: "var(--color-text)", overflowWrap: "anywhere" }}>{log.actor}</div>
-                        <div style={{ fontSize: "11px", color: "var(--color-text-muted)", textTransform: "capitalize" }}>{log.actorType}</div>
+                        <div style={{ fontSize: "12px", color: "var(--color-text-muted)", textTransform: "capitalize" }}>{log.actorType}</div>
                       </div>
                     </TableCell>
                     <TableCell style={tdStyle}>
-                      <span title={log.details ?? undefined} style={{ color: "var(--color-text-secondary)", fontSize: "12px" }}>
+                      <span title={log.details ?? undefined} style={{ color: "var(--color-text-secondary)", fontSize: "14px" }}>
                         {log.target || "-"}
                       </span>
                     </TableCell>
@@ -465,7 +464,7 @@ function AuditPanel() {
                       )}
                     </TableCell>
                     <TableCell style={tdStyle}>
-                      <span style={{ fontFamily: "'SF Mono', 'Consolas', monospace", fontSize: "11px", color: "var(--color-text-muted)" }}>{log.ip || "-"}</span>
+                      <span style={{ fontFamily: "'SF Mono', 'Consolas', monospace", fontSize: "12px", color: "var(--color-text-muted)" }}>{log.ip || "-"}</span>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -477,7 +476,7 @@ function AuditPanel() {
 
       {!loading && !error && totalPages > 1 && (
         <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "14px" }} aria-label="Audit log pagination">
-          <p style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>Page {page} of {totalPages}</p>
+          <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>Page {page} of {totalPages}</p>
           <div style={{ display: "flex", gap: "8px" }}>
             <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} aria-label="Previous page" style={{ borderColor: "var(--color-border)", gap: "4px" }}>
               <ChevronLeft className="h-4 w-4" /> Prev
@@ -555,9 +554,9 @@ function SecurityPanel() {
       <CardContent style={{ padding: "24px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
           <ShieldCheck className="h-5 w-5" style={{ color: "var(--color-primary)" }} />
-          <h3 style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)" }}>Change password</h3>
+          <h3 style={{ fontSize: "16px", fontWeight: 600, color: "var(--color-text)" }}>Change password</h3>
         </div>
-        <p style={{ fontSize: "13px", color: "var(--color-text-muted)", marginBottom: "20px" }}>
+        <p style={{ fontSize: "15px", color: "var(--color-text-muted)", marginBottom: "20px" }}>
           Choose a strong password of at least 8 characters.
         </p>
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -565,7 +564,7 @@ function SecurityPanel() {
           {inputGroup("New password", newPassword, setNewPassword, "new-password")}
           {inputGroup("Confirm new password", confirmPassword, setConfirmPassword, "new-password")}
           {formError && (
-            <div role="alert" style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "var(--color-error)" }}>
+            <div role="alert" style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "15px", color: "var(--color-error)" }}>
               <ShieldAlert className="h-4 w-4" /> {formError}
             </div>
           )}
@@ -577,10 +576,10 @@ function SecurityPanel() {
               padding: "10px 22px",
               border: "none",
               borderRadius: "8px",
-              fontSize: "13px",
+              fontSize: "15px",
               fontWeight: 600,
               background: "var(--color-primary)",
-              color: "#fff",
+              color: "#000",
               cursor: saving || !currentPassword || !newPassword || !confirmPassword ? "not-allowed" : "pointer",
               opacity: saving || !currentPassword || !newPassword || !confirmPassword ? 0.5 : 1,
             }}

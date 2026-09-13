@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import {
@@ -136,9 +136,9 @@ export default function AnalyticsPage() {
         <Card>
           <CardContent style={{ padding: "48px 20px", textAlign: "center" }}>
             <AlertCircle className="h-10 w-10" style={{ margin: "0 auto 16px", color: "var(--color-error)" }} />
-            <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>Failed to load analytics</p>
-            <p style={{ fontSize: "13px", color: "var(--color-text-muted)", marginBottom: "20px" }}>{error}</p>
-            <Button onClick={handleRefresh} style={{ background: "var(--color-primary)", color: "#fff" }}>
+            <p style={{ fontSize: "16px", fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>Failed to load analytics</p>
+            <p style={{ fontSize: "15px", color: "var(--color-text-muted)", marginBottom: "20px" }}>{error}</p>
+            <Button onClick={handleRefresh} style={{ background: "var(--color-primary)", color: "#000" }}>
               <RefreshCw className="h-4 w-4" style={{ marginRight: "6px" }} /> Retry
             </Button>
           </CardContent>
@@ -174,12 +174,12 @@ export default function AnalyticsPage() {
             <Card key={card.title}>
               <CardContent style={{ padding: "20px" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-                  <p style={{ fontSize: "13px", color: "var(--color-text-muted)", fontWeight: 500 }}>{card.title}</p>
+                  <p style={{ fontSize: "15px", color: "var(--color-text-muted)", fontWeight: 500 }}>{card.title}</p>
                   <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: card.iconBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <Icon className="h-4 w-4" style={{ color: card.iconColor }} />
                   </div>
                 </div>
-                <p style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text)" }}>{card.value}</p>
+                <p style={{ fontSize: "24px", fontWeight: 700, color: "var(--color-text)" }}>{card.value}</p>
               </CardContent>
             </Card>
           );
@@ -317,8 +317,8 @@ export default function AnalyticsPage() {
               return (
                 <li key={s.status}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-                    <span style={{ fontSize: "13px", color: "var(--color-text-secondary)", textTransform: "capitalize" }}>{s.status}</span>
-                    <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text)" }}>{s.count} · {pct}%</span>
+                    <span style={{ fontSize: "15px", color: "var(--color-text-secondary)", textTransform: "capitalize" }}>{s.status}</span>
+                    <span style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)" }}>{s.count} · {pct}%</span>
                   </div>
                   <div style={{ width: "100%", height: "6px", borderRadius: "3px", background: "var(--color-bg-subtle)", overflow: "hidden" }}>
                     <div style={{ height: "100%", borderRadius: "3px", background: color, width: `${pct}%`, transition: "width 0.5s ease" }} />
@@ -337,7 +337,7 @@ const tooltipStyle: React.CSSProperties = {
   background: "var(--color-bg-elevated)",
   border: "1px solid var(--color-border)",
   borderRadius: "8px",
-  fontSize: "12px",
+  fontSize: "14px",
   boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
 };
 
@@ -350,11 +350,11 @@ function PageHeader({ onRefresh, refreshing }: { onRefresh: () => void; refreshi
   return (
     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
       <div>
-        <h1 style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text)", marginBottom: "4px", display: "flex", alignItems: "center", gap: "8px" }}>
+        <h1 style={{ fontSize: "24px", fontWeight: 700, color: "var(--color-text)", marginBottom: "4px", display: "flex", alignItems: "center", gap: "8px" }}>
           <LineChartIcon className="h-5 w-5" style={{ color: "var(--color-primary)" }} />
           Analytics
         </h1>
-        <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>Revenue, inventory and subscriber trends</p>
+        <p style={{ fontSize: "15px", color: "var(--color-text-muted)" }}>Revenue, inventory and subscriber trends</p>
       </div>
       <Button variant="outline" size="sm" onClick={onRefresh} disabled={refreshing} aria-label="Refresh analytics" style={{ borderColor: "var(--color-border)", gap: "6px" }}>
         <RefreshCw className="h-4 w-4" style={{ animation: refreshing ? "spin 1s linear infinite" : undefined }} />
@@ -380,12 +380,12 @@ function ChartCard({
   return (
     <Card>
       <CardContent style={{ padding: "20px" }}>
-        <h3 style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)" }}>{title}</h3>
-        <p style={{ fontSize: "12px", color: "var(--color-text-muted)", marginBottom: "12px" }}>{subtitle}</p>
+        <h3 style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)" }}>{title}</h3>
+        <p style={{ fontSize: "14px", color: "var(--color-text-muted)", marginBottom: "12px" }}>{subtitle}</p>
         {empty ? (
           <div style={{ height: 260, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "8px", background: "var(--color-bg-subtle)", borderRadius: "8px" }}>
             <BarChart3 className="h-6 w-6" style={{ color: "var(--color-text-muted)", opacity: 0.5 }} />
-            <p style={{ fontSize: "13px", color: "var(--color-text-muted)" }}>{emptyMessage}</p>
+            <p style={{ fontSize: "15px", color: "var(--color-text-muted)" }}>{emptyMessage}</p>
           </div>
         ) : (
           children

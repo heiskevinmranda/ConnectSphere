@@ -2,16 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   LayoutDashboard, Users, Package, Ticket, Wifi, Router,
   BarChart3, Settings, Menu, X, LogOut, Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Toaster, toast } from "@/components/ui/toaster";
+import { toast } from "@/components/ui/toaster";
 import {
   adminFetch,
   clearAdminSession,
-  getAdminToken,
 } from "@/lib/admin-client";
 
 const NAV_ITEMS = [
@@ -40,11 +40,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [auth, setAuth] = useState<AuthState>(() =>
-    typeof window !== "undefined" && getAdminToken()
-      ? { status: "checking" }
-      : { status: "unauthorized" }
-  );
+  const [auth, setAuth] = useState<AuthState>({ status: "checking" });
 
   useEffect(() => {
     if (auth.status !== "checking") return;
@@ -85,11 +81,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--color-bg)", padding: "16px" }}>
         <div style={{ textAlign: "center", maxWidth: "360px" }}>
           <Shield className="h-10 w-10" style={{ margin: "0 auto 16px", color: "var(--color-text-muted)" }} />
-          <h1 style={{ fontSize: "18px", fontWeight: 700, color: "var(--color-text)", marginBottom: "8px" }}>Sign in required</h1>
-          <p style={{ fontSize: "14px", color: "var(--color-text-muted)", marginBottom: "20px" }}>
+          <h1 style={{ fontSize: "20px", fontWeight: 700, color: "var(--color-text)", marginBottom: "8px" }}>Sign in required</h1>
+          <p style={{ fontSize: "15px", color: "var(--color-text-muted)", marginBottom: "20px" }}>
             Your session is invalid or has expired. Please sign in again to access the admin portal.
           </p>
-          <Button onClick={() => router.replace("/")} style={{ background: "var(--color-primary)", color: "#fff" }}>
+          <Button onClick={() => router.replace("/")} style={{ background: "var(--color-primary)", color: "#000" }}>
             Back to Home
           </Button>
         </div>
@@ -104,10 +100,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <div style={{ padding: "20px 16px", borderBottom: "1px solid var(--color-border)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: "var(--color-primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Shield className="h-5 w-5" style={{ color: "#ffffff" }} />
+            <Shield className="h-5 w-5" style={{ color: "#000000" }} />
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: "15px", color: "var(--color-primary)", lineHeight: 1.2 }}>ConnectSphere</div>
+            <div style={{ fontWeight: 700, fontSize: "16px", color: "var(--color-text)", lineHeight: 1.2 }}>ConnectSphere</div>
             <div style={{ fontSize: "10px", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Admin Portal</div>
           </div>
           <button
@@ -120,12 +116,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <X className="h-5 w-5" />
           </button>
         </div>
-        <div style={{ marginTop: "12px", padding: "8px 10px", borderRadius: "8px", background: "var(--color-bg-subtle)" }}>
-          <div style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text)", overflowWrap: "anywhere" }}>{auth.account.email}</div>
-          <div style={{ fontSize: "11px", color: auth.account.role === "super_admin" ? "var(--color-warning)" : "var(--color-text-muted)", textTransform: "capitalize", fontWeight: 500 }}>
-            {auth.account.role.replace("_", " ")}
-          </div>
-        </div>
       </div>
 
       <nav style={{ flex: 1, overflowY: "auto", padding: "12px 8px" }} aria-label="Admin sections">
@@ -133,7 +123,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           const Icon = item.icon;
           const active = pathname.startsWith(item.href);
           return (
-            <a
+            <Link
               key={item.href}
               href={item.href}
               aria-current={active ? "page" : undefined}
@@ -144,9 +134,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 gap: "10px",
                 padding: "10px 12px",
                 borderRadius: "8px",
-                fontSize: "14px",
+                fontSize: "15px",
                 fontWeight: active ? 600 : 500,
-                color: active ? "#ffffff" : "var(--color-text-secondary)",
+                color: active ? "#000000" : "var(--color-text-secondary)",
                 background: active ? "var(--color-primary)" : "transparent",
                 textDecoration: "none",
                 marginBottom: "2px",
@@ -157,7 +147,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             >
               <Icon className="h-4 w-4" style={{ flexShrink: 0 }} />
               {item.label}
-            </a>
+            </Link>
           );
         })}
       </nav>
@@ -172,7 +162,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             gap: "10px",
             padding: "10px 12px",
             borderRadius: "8px",
-            fontSize: "14px",
+            fontSize: "15px",
             fontWeight: 500,
             color: "var(--color-error)",
             background: "transparent",
@@ -194,7 +184,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", background: "var(--color-bg)" }}>
-      <Toaster />
       {sidebarOpen && (
         <div
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", zIndex: 40 }}
@@ -257,7 +246,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <h2 style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)" }}>{currentPage}</h2>
+          <h2 style={{ fontSize: "16px", fontWeight: 600, color: "var(--color-text)" }}>{currentPage}</h2>
         </header>
         <main style={{ flex: 1, padding: "24px", overflow: "auto" }}>
           {children}

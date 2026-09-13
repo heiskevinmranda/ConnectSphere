@@ -3,14 +3,37 @@ import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 export const ADMIN_ROLES = ["admin", "super_admin"] as const;
 export type AdminRole = (typeof ADMIN_ROLES)[number];
 
+const PLACEHOLDER_PATTERN =
+  /^\s*(change[-_ ]?me|changeme|example|your[-_ ]|replace|secret|jwt[-_ ]?secret|dummy|test)/i;
+
 function getJwtSecret(): Uint8Array {
   const secret = process.env.JWT_SECRET;
-  if (!secret || secret.length < 16) {
+  assertStrongSecret(secret);
+  return new TextEncoder().encode(secret);
+}
+
+function assertStrongSecret(secret: string | undefined): asserts secret is string {
+  if (!secret) {
+    throw new Error("JWT_SECRET is not configured.");
+  }
+  if (secret.length < 32) {
     throw new Error(
-      "JWT_SECRET is not configured or is too weak (minimum 16 characters)"
+      "JWT_SECRET is too short (minimum 32 characters). Generate one with: node -e \"console.log(require('crypto').randomBytes(48).toString('base64url'))\""
     );
   }
-  return new TextEncoder().encode(secret);
+  if (PLACEHOLDER_PATTERN.test(secret)) {
+    throw new Error(
+      "JWT_SECRET looks like a placeholder. Replace it with a strong random value before deploying."
+    );
+  }
+  const classes = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((re) =>
+    re.test(secret)
+  );
+  if (classes.length < 3) {
+    throw new Error(
+      "JWT_SECRET must combine letters, digits, and symbols/uppercase."
+    );
+  }
 }
 
 export interface AdminJWTPayload extends JWTPayload {

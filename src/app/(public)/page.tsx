@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { HeroSection } from "./components/hero-section";
+import { SiteNav } from "./components/site-nav";
 import { PlansSection } from "./components/plans-section";
 import { StatusSection } from "./components/status-section";
 import { SupportSection } from "./components/support-section";
@@ -38,7 +39,8 @@ export default function PublicPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--color-bg)" }}>
-      <HeroSection onAdminClick={() => setShowAdminLogin(true)} />
+      <SiteNav />
+      <HeroSection />
       <main
         style={{
           maxWidth: "1200px",
@@ -52,7 +54,7 @@ export default function PublicPage() {
         <PlansSection onSelectPlan={handleSelectPlan} />
         <SupportSection />
       </main>
-      <Footer />
+      <Footer onAdminClick={() => setShowAdminLogin(true)} />
       {showPayment && selectedPlan && (
         <PaymentModal
           plan={selectedPlan}

@@ -115,19 +115,35 @@ export const vouchersService = {
       return !existingCodes.has(code);
     });
 
-    if (newVouchers.length === 0) {
-      throw new ServiceError("All voucher codes already exist", 409);
+    // Drop duplicates that appear multiple times within a single upload.
+    const deduped = new Map<string, { code: string; price: number }>();
+    for (const item of newVouchers) {
+      const code = typeof item === "string" ? item : item.code;
+      if (!deduped.has(code)) {
+        deduped.set(code, {
+          code,
+          price: typeof item === "string" ? tiers[0] : item.price,
+        });
+      }
+    }
+    const newVouchersUnique = Array.from(deduped.values());
+
+    if (newVouchersUnique.length === 0) {
+      throw new ServiceError(
+        "All voucher codes already exist, or no new codes were provided.",
+        409
+      );
     }
 
     let insertedCount = 0;
     const BATCH_SIZE = 500;
 
-    for (let i = 0; i < newVouchers.length; i += BATCH_SIZE) {
-      const batch = newVouchers.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < newVouchersUnique.length; i += BATCH_SIZE) {
+      const batch = newVouchersUnique.slice(i, i + BATCH_SIZE);
       const result = await prisma.voucher.createMany({
         data: batch.map((item) => ({
-          code: typeof item === "string" ? item : item.code,
-          price: typeof item === "string" ? tiers[0] : item.price,
+          code: item.code,
+          price: item.price,
           isUsed: false,
         })),
       });
@@ -158,21 +174,31 @@ export const vouchersService = {
     const BATCH_SIZE = 500;
     let totalCreated = 0;
 
-    for (let i = 0; i < count; i += BATCH_SIZE) {
-      const batchSize = Math.min(BATCH_SIZE, count - i);
-      // 10-digit numeric codes, matching the upload format exactly.
-      const codes = new Set<string>();
-      while (codes.size < batchSize) {
-        codes.add(generateVoucherCode());
+    try {
+      for (let i = 0; i < count; i += BATCH_SIZE) {
+        const batchSize = Math.min(BATCH_SIZE, count - i);
+        const codes = await buildUniqueCodes(batchSize);
+        if (codes.length === 0) break;
+
+        const result = await prisma.voucher.createMany({
+          data: codes.map((code) => ({
+            code,
+            price,
+            isUsed: false,
+          })),
+        });
+        totalCreated += result.count;
       }
-      const result = await prisma.voucher.createMany({
-        data: Array.from(codes, (code) => ({
-          code,
-          price,
-          isUsed: false,
-        })),
-      });
-      totalCreated += result.count;
+    } catch (error) {
+      // A concurrent generation could still race a unique constraint.
+      // Surface that as a retryable client error instead of a 500.
+      if (isPrismaUniqueViolation(error)) {
+        throw new ServiceError(
+          "Voucher codes collided with another generation. Please retry.",
+          409
+        );
+      }
+      throw error;
     }
 
     invalidateVoucherCaches();
@@ -264,6 +290,41 @@ export const vouchersService = {
 function generateVoucherCode(): string {
   return Array.from(crypto.randomBytes(10), (b) => (b % 10).toString()).join(
     ""
+  );
+}
+
+/**
+ * Generates N codes that do not already exist in the database, refilling
+ * any that collide so createMany never trips the unique constraint.
+ */
+async function buildUniqueCodes(count: number): Promise<string[]> {
+  const codes = new Set<string>();
+  for (let round = 0; round < 10 && codes.size < count; round++) {
+    const generated = new Set<string>();
+    while (generated.size < count) {
+      generated.add(generateVoucherCode());
+    }
+    const existing = await prisma.voucher.findMany({
+      where: { code: { in: Array.from(generated) } },
+      select: { code: true },
+    });
+    const existingSet = new Set(existing.map((v) => v.code));
+    for (const code of generated) {
+      if (!existingSet.has(code)) {
+        codes.add(code);
+        if (codes.size === count) break;
+      }
+    }
+  }
+  return Array.from(codes);
+}
+
+function isPrismaUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "P2002"
   );
 }
 

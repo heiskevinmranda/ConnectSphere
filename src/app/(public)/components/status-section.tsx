@@ -37,6 +37,8 @@ export function StatusSection() {
     setLoading(true);
     setChecked(false);
     setCopied(false);
+    setResult(null);
+    setNotFound(false);
     try {
       const res = await fetch("/api/subscriptions/check", {
         method: "POST",
@@ -98,7 +100,7 @@ export function StatusSection() {
   };
 
   return (
-    <section style={{ padding: "24px 0", width: "100%" }} aria-labelledby="status-heading">
+    <section id="status" style={{ padding: "64px 0", width: "100%" }} aria-labelledby="status-heading">
       <div
         style={{
           maxWidth: "560px",
@@ -106,7 +108,7 @@ export function StatusSection() {
           background: "var(--color-bg-elevated)",
           border: "1px solid var(--color-border)",
           borderRadius: "var(--radius-lg)",
-          padding: "22px 20px",
+          padding: "40px 32px",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
@@ -132,7 +134,7 @@ export function StatusSection() {
               flex: 1,
               border: "1.5px solid var(--color-border)",
               borderRadius: "var(--radius-md)",
-              background: "#fff",
+              background: "var(--color-bg)",
             }}
           >
             <span style={{ padding: "11px 12px", fontSize: "0.85rem", fontWeight: 600, color: "var(--color-text)", background: "var(--color-bg-subtle)", borderRight: "1px solid var(--color-border)" }}>+255</span>
@@ -151,8 +153,8 @@ export function StatusSection() {
           <button
             type="submit"
             disabled={loading}
-            className="font-semibold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50"
-            style={{ padding: "0 18px", background: "var(--color-primary)", borderRadius: "var(--radius-md)", fontSize: "0.85rem", whiteSpace: "nowrap" }}
+            className="font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+            style={{ padding: "0 18px", background: "var(--color-primary)", color: "#000000", borderRadius: "var(--radius-md)", fontSize: "0.85rem", whiteSpace: "nowrap" }}
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {loading ? "Checking..." : "Check"}

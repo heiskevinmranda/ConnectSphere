@@ -4,57 +4,66 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Tailwind v4 preflight provides box-sizing/margin/padding resets inside its
+   own cascade layers. Do NOT add an unlayered universal reset here — it would
+   override every utility padding (buttons, inputs, selects, cards). */
+
 :root {
-  --font-figtree: "Figtree", sans-serif;
+  /* SpaceX language: pure black canvas, black/white only, hairline chrome */
+  /* --font-figtree is set by next/font (Figtree) on <html> via its variable */
+  --font-display: var(--font-figtree, "Figtree", "Arial Narrow", Arial, sans-serif);
 
-  --color-bg: #f8f9fa;
-  --color-bg-elevated: #ffffff;
-  --color-bg-subtle: #f1f3f5;
-  --color-text: #1a1a2e;
-  --color-text-secondary: #495057;
-  --color-text-muted: #868e96;
-  --color-border: #dee2e6;
-  --color-border-light: #e9ecef;
-  --color-primary: #1a4731;
-  --color-primary-light: #2d6a4f;
-  --color-primary-dark: #0f2b1f;
-  --color-primary-surface: #e8f5e9;
-  --color-success: #2d6a4f;
-  --color-success-surface: #e8f5e9;
-  --color-warning: #e67e22;
-  --color-warning-surface: #fef3e2;
-  --color-error: #c0392b;
-  --color-error-surface: #fdecea;
+  color-scheme: dark;
 
-  --radius: 0.625rem;
+  --color-bg: #000000;
+  --color-bg-elevated: #0a0a0a;
+  --color-bg-subtle: #121214;
+  --color-text: #ffffff;
+  --color-text-secondary: #f0f0fa;
+  --color-text-muted: #5a5a5f;
+  --color-border: #3a3a3f;
+  --color-border-light: #232327;
+  --color-primary: #f0f0fa; /* filled-cool: pale cool white surface */
+  --color-primary-light: #ffffff;
+  --color-primary-dark: #0a0a0a;
+  --color-primary-surface: rgba(240, 240, 250, 0.08);
+  --color-success: #8fd8b4;
+  --color-success-surface: rgba(143, 216, 180, 0.12);
+  --color-warning: #e8b85b;
+  --color-warning-surface: rgba(232, 184, 91, 0.12);
+  --color-error: #f08a8a;
+  --color-error-surface: rgba(240, 138, 138, 0.12);
+
+  --glass-bg: #0a0a0a;
+  --glass-border: #3a3a3f;
+
+  --radius: 0.5rem;
 
   --transition-fast: 150ms ease;
   --transition-normal: 250ms ease;
 
-  --background: #f8f9fa;
-  --foreground: #1a1a2e;
-  --card: #ffffff;
-  --card-foreground: #1a1a2e;
-  --popover: #ffffff;
-  --popover-foreground: #1a1a2e;
-  --primary: #1a4731;
-  --primary-foreground: #ffffff;
-  --secondary: #f1f3f5;
-  --secondary-foreground: #1a1a2e;
-  --muted: #f1f3f5;
-  --muted-foreground: #868e96;
-  --accent: #f1f3f5;
-  --accent-foreground: #1a1a2e;
-  --destructive: #c0392b;
-  --border: #dee2e6;
-  --input: #dee2e6;
-  --ring: #1a4731;
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #0a0a0a;
+  --card-foreground: #ffffff;
+  --popover: #0a0a0a;
+  --popover-foreground: #ffffff;
+  --primary: #f0f0fa;
+  --primary-foreground: #000000;
+  --secondary: #121214;
+  --secondary-foreground: #ffffff;
+  --muted: #121214;
+  --muted-foreground: #5a5a5f;
+  --accent: #121214;
+  --accent-foreground: #ffffff;
+  --destructive: #f08a8a;
+  --border: #3a3a3f;
+  --input: #3a3a3f;
+  --ring: #ffffff;
 }
 
 * {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
 html {
@@ -89,9 +98,105 @@ body {
   to { transform: rotate(360deg); }
 }
 
+.glass-panel {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--color-text);
+}
+
+::selection {
+  background: rgba(240, 240, 250, 0.25);
+  color: var(--color-text);
+}
+
+/* ---- SpaceX typography ---- */
+
+.eyebrow {
+  font-family: var(--font-figtree);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.display-xxl {
+  font-family: var(--font-display);
+  font-size: clamp(40px, 8vw, 80px);
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.display-xl {
+  font-family: var(--font-display);
+  font-size: clamp(32px, 5vw, 60px);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.display-lg {
+  font-family: var(--font-display);
+  font-size: clamp(24px, 3.5vw, 48px);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* Ghost outlined pill CTA — the only CTA on marketing surfaces */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 18px 24px;
+  border: 1px solid var(--color-text);
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-figtree);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.btn-ghost-inverse {
+  border-color: var(--color-text);
+  color: var(--color-text);
+}
+
+/* Caps chrome: every h1/h2 and button label shouts in caps */
+h1,
+h2 {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+button {
+  text-transform: uppercase;
+  letter-spacing: 0.035em;
+}
+
+section[id],
+div[id="top"] {
+  scroll-margin-top: 76px;
+}
+
 select {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23495057' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23aab4c8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 32px;
@@ -159,19 +264,19 @@ select {
 }
 
 .hero-container {
-  min-height: 480px;
+  min-height: 92vh;
 }
 
 .hero-content {
-  min-height: 480px;
+  min-height: 92vh;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .hero-container {
-    min-height: 520px;
+    min-height: 100vh;
   }
   .hero-content {
-    min-height: 520px;
+    min-height: 100vh;
   }
 }
 
@@ -189,10 +294,10 @@ select {
 
 @theme inline {
   --font-sans: var(--font-figtree);
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
   --radius-2xl: 28px;
   --radius-3xl: 36px;
   --radius-4xl: 44px;

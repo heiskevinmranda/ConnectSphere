@@ -8,7 +8,7 @@ import { apiSuccess, apiError, apiBadRequest, apiUnauthorized } from "@/lib/api-
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
 
-  const limit = rateLimit(`login:${ip}`, 10, 300);
+  const limit = rateLimit(`login:${ip}`, 15, 300);
   if (!limit.allowed) {
     await recordAudit({
       actor: ip,
@@ -33,6 +33,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Per-account throttle (not spoofable the way IP headers are).
+    const accountLimit = rateLimit(
+      `login:${parsed.data.email.toLowerCase()}:${ip}`,
+      5,
+      300
+    );
+    if (!accountLimit.allowed) {
+      await recordAudit({
+        actor: parsed.data.email,
+        actorType: "admin",
+        action: "admin.login.rate_limited",
+        ip,
+        status: "failure",
+      });
+      return apiError(
+        `Too many login attempts for this account. Try again in ${accountLimit.retryAfterSeconds} seconds.`,
+        429
+      );
+    }
+
     const result = await authService.login(parsed.data);
     if (!result.success) {
       await recordAudit({
@@ -54,7 +74,8 @@ export async function POST(request: NextRequest) {
     });
 
     return apiSuccess(result);
-  } catch {
+  } catch (error) {
+    console.error("[auth/login] unexpected error:", error);
     return apiError("Login failed", 500);
   }
 }

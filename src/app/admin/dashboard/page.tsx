@@ -19,6 +19,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,7 +39,10 @@ export default function AdminDashboard() {
           );
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     })();
     return () => {
@@ -48,6 +52,11 @@ export default function AdminDashboard() {
 
   const handleRetry = () => {
     setLoading(true);
+    setRefreshKey((k) => k + 1);
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
     setRefreshKey((k) => k + 1);
   };
 
@@ -63,15 +72,15 @@ export default function AdminDashboard() {
     return (
       <div>
         <div style={{ marginBottom: "24px" }}>
-          <h1 style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text)", marginBottom: "4px" }}>Dashboard</h1>
-          <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>Overview of your ISP operations</p>
+          <h1 style={{ fontSize: "24px", fontWeight: 700, color: "var(--color-text)", marginBottom: "4px" }}>Dashboard</h1>
+          <p style={{ fontSize: "15px", color: "var(--color-text-muted)" }}>Overview of your ISP operations</p>
         </div>
         <Card>
           <CardContent style={{ padding: "48px 20px", textAlign: "center" }}>
             <AlertCircle className="h-10 w-10" style={{ margin: "0 auto 16px", color: "var(--color-error)" }} />
-            <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>Failed to load statistics</p>
-            <p style={{ fontSize: "13px", color: "var(--color-text-muted)", marginBottom: "20px" }}>{error}</p>
-            <Button onClick={handleRetry} style={{ background: "var(--color-primary)", color: "#fff" }}>
+            <p style={{ fontSize: "16px", fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>Failed to load statistics</p>
+            <p style={{ fontSize: "15px", color: "var(--color-text-muted)", marginBottom: "20px" }}>{error}</p>
+            <Button onClick={handleRetry} style={{ background: "var(--color-primary)", color: "#000" }}>
               <RefreshCw className="h-4 w-4" style={{ marginRight: "6px" }} /> Retry
             </Button>
           </CardContent>
@@ -104,9 +113,15 @@ export default function AdminDashboard() {
 
   return (
     <div>
-      <div style={{ marginBottom: "24px" }}>
-        <h1 style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text)", marginBottom: "4px" }}>Dashboard</h1>
-        <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>Overview of your ISP operations</p>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px", gap: "12px", flexWrap: "wrap" }}>
+        <div>
+          <h1 style={{ fontSize: "24px", fontWeight: 700, color: "var(--color-text)", marginBottom: "4px" }}>Dashboard</h1>
+          <p style={{ fontSize: "15px", color: "var(--color-text-muted)" }}>Overview of your ISP operations</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing} aria-label="Refresh dashboard" style={{ borderColor: "var(--color-border)", gap: "6px" }}>
+          <RefreshCw className="h-4 w-4" style={{ animation: refreshing ? "spin 1s linear infinite" : undefined }} />
+          Refresh
+        </Button>
       </div>
       <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "24px" }}>
         {statCards.map((card) => {
@@ -115,13 +130,13 @@ export default function AdminDashboard() {
             <Card key={card.title}>
               <CardContent style={{ padding: "20px" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-                  <p style={{ fontSize: "13px", color: "var(--color-text-muted)", fontWeight: 500 }}>{card.title}</p>
+                  <p style={{ fontSize: "15px", color: "var(--color-text-muted)", fontWeight: 500 }}>{card.title}</p>
                   <div style={{ width: "36px", height: "36px", borderRadius: "8px", background: card.iconBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <Icon className="h-4 w-4" style={{ color: card.iconColor }} />
                   </div>
                 </div>
-                <p style={{ fontSize: "24px", fontWeight: 700, color: "var(--color-text)" }}>{card.value}</p>
-                {card.sub && <p style={{ fontSize: "12px", color: "var(--color-text-muted)", marginTop: "4px" }}>{card.sub}</p>}
+                <p style={{ fontSize: "26px", fontWeight: 700, color: "var(--color-text)" }}>{card.value}</p>
+                {card.sub && <p style={{ fontSize: "14px", color: "var(--color-text-muted)", marginTop: "4px" }}>{card.sub}</p>}
               </CardContent>
             </Card>
           );
@@ -132,13 +147,13 @@ export default function AdminDashboard() {
           <CardContent style={{ padding: "20px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
               <Activity className="h-4 w-4" style={{ color: "var(--color-primary)" }} />
-              <h3 style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)" }}>Recent Activity</h3>
+              <h3 style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)" }}>Recent Activity</h3>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {detailRows.map((r) => (
                 <div key={r.label} style={{ ...rowStyle, padding: "12px 16px" }}>
-                  <span style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>{r.label}</span>
-                  <span style={{ fontSize: "15px", fontWeight: 600, color: r.highlight ? "var(--color-error)" : "var(--color-text)" }}>{r.value}</span>
+                  <span style={{ fontSize: "15px", color: "var(--color-text-secondary)" }}>{r.label}</span>
+                  <span style={{ fontSize: "16px", fontWeight: 600, color: r.highlight ? "var(--color-error)" : "var(--color-text)" }}>{r.value}</span>
                 </div>
               ))}
             </div>
@@ -148,19 +163,19 @@ export default function AdminDashboard() {
           <CardContent style={{ padding: "20px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
               <TrendingUp className="h-4 w-4" style={{ color: "var(--color-primary)" }} />
-              <h3 style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)" }}>Voucher Inventory</h3>
+              <h3 style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)" }}>Voucher Inventory</h3>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {voucherRows.map((r) => (
                 <div key={r.label} style={{ ...rowStyle, padding: "12px 16px" }}>
-                  <span style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>{r.label}</span>
-                  <span style={{ fontSize: "15px", fontWeight: 600, color: r.color || "var(--color-text)" }}>{r.value}</span>
+                  <span style={{ fontSize: "15px", color: "var(--color-text-secondary)" }}>{r.label}</span>
+                  <span style={{ fontSize: "16px", fontWeight: 600, color: r.color || "var(--color-text)" }}>{r.value}</span>
                 </div>
               ))}
               <div style={{ marginTop: "8px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-                  <span style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>Redemption rate</span>
-                  <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text)" }}>{stats?.vouchers.usagePercentage ?? 0}%</span>
+                  <span style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>Redemption rate</span>
+                  <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)" }}>{stats?.vouchers.usagePercentage ?? 0}%</span>
                 </div>
                 <div style={{ width: "100%", height: "6px", borderRadius: "3px", background: "var(--color-bg-subtle)", overflow: "hidden" }}>
                   <div style={{ height: "100%", borderRadius: "3px", background: "var(--color-primary)", width: `${stats?.vouchers.usagePercentage ?? 0}%`, transition: "width 0.5s ease" }} />

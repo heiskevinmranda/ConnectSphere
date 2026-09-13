@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { vouchersService } from "@/modules/vouchers/services/vouchers.service";
 import { getAdminContext, recordAudit, getAdminId } from "@/lib/audit";
+import { canManageSystem } from "@/lib/auth";
 import { getClientIp } from "@/lib/rate-limit";
 import {
   apiSuccess,
@@ -9,6 +10,7 @@ import {
   apiBadRequest,
   apiNotFound,
   apiConflict,
+  apiForbidden,
 } from "@/lib/api-response";
 
 export async function DELETE(
@@ -17,6 +19,13 @@ export async function DELETE(
 ) {
   const ctx = getAdminContext(request.headers);
   if (!ctx) return apiError("Missing admin context", 401);
+
+  // Destroying sellable inventory is a super-admin action.
+  if (!canManageSystem(ctx.role)) {
+    return apiForbidden(
+      "Only super administrators can delete vouchers."
+    );
+  }
 
   try {
     const { id } = await params;

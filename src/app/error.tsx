@@ -24,7 +24,7 @@ export default function GlobalError({
         )}
         <Button
           onClick={reset}
-          className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-light)] text-white"
+          className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-light)] text-black"
         >
           Try Again
         </Button>

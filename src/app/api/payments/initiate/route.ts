@@ -62,6 +62,9 @@ export async function POST(request: NextRequest) {
           { status: 503 }
         );
       }
+      if (result.code === "PROVIDER_UNAVAILABLE") {
+        return apiError(result.message, 503);
+      }
       return NextResponse.json(
         {
           success: false,
@@ -77,8 +80,10 @@ export async function POST(request: NextRequest) {
 
     return apiSuccess(result, result.message);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Payment initiation failed";
-    return apiError(message, 500);
+    // Never leak internal details to the caller. Log them server-side.
+    if (error instanceof Error) {
+      console.error("[payments/initiate] unexpected error:", error);
+    }
+    return apiError("Payment could not be initiated. Please try again.", 500);
   }
 }

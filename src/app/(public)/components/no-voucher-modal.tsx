@@ -1,12 +1,14 @@
 "use client";
 
 import { AlertTriangle } from "lucide-react";
+import { useModalA11y } from "@/lib/use-modal-a11y";
 
 interface NoVoucherModalProps {
   onClose: () => void;
 }
 
 export function NoVoucherModal({ onClose }: NoVoucherModalProps) {
+  const dialogRef = useModalA11y(onClose);
   return (
     <div
       className="fixed inset-0 z-50 flex items-end md:items-center justify-center"
@@ -14,7 +16,12 @@ export function NoVoucherModal({ onClose }: NoVoucherModalProps) {
       onClick={onClose}
     >
       <div
-        className="bg-white w-full max-w-md"
+        ref={dialogRef}
+        role="dialog"
+        tabIndex={-1}
+        aria-modal="true"
+        aria-labelledby="no-voucher-title"
+        className="glass-panel w-full max-w-md"
         style={{ borderRadius: "var(--radius-xl) var(--radius-xl) 0 0", animation: "slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -22,7 +29,7 @@ export function NoVoucherModal({ onClose }: NoVoucherModalProps) {
           <div className="w-14 h-14 rounded-full bg-[var(--color-warning-surface)] text-[var(--color-warning)] flex items-center justify-center mx-auto mb-4">
             <AlertTriangle className="h-7 w-7" />
           </div>
-          <h2 className="text-lg font-bold text-[var(--color-text)] mb-2">Vouchers Temporarily Unavailable</h2>
+          <h2 id="no-voucher-title" className="text-lg font-bold text-[var(--color-text)] mb-2">Vouchers Temporarily Unavailable</h2>
           <p className="text-sm text-[var(--color-text-secondary)] mb-5" style={{ lineHeight: "1.5" }}>
             We are currently out of voucher codes for this plan. Please try again in a few minutes or contact support for assistance.
           </p>

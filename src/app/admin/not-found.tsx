@@ -11,7 +11,7 @@ export default function AdminNotFound() {
         </p>
         <a
           href="/admin/dashboard"
-          className="inline-block px-4 py-2 bg-[var(--color-primary)] text-white rounded-lg text-sm font-medium hover:bg-[var(--color-primary-light)]"
+          className="inline-block px-4 py-2 bg-[var(--color-primary)] text-black rounded-lg text-sm font-medium hover:bg-[var(--color-primary-light)]"
         >
           Back to Dashboard
         </a>

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { Loader2, X } from "lucide-react";
 import { toast } from "@/components/ui/toaster";
 import { formatDuration, formatCurrency, detectMNOProvider } from "@/lib/utils";
+import { useModalA11y } from "@/lib/use-modal-a11y";
 
 interface PaymentModalProps {
   plan: Record<string, unknown>;
@@ -51,18 +52,12 @@ export function PaymentModal({ plan, onClose, onSuccess, onStockOut }: PaymentMo
     onClose();
   };
 
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeModal();
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const dialogRef = useModalA11y(closeModal);
 
   const provider = detectMNOProvider("+255" + phone.replace(/\D/g, "").replace(/^0/, ""));
 
   const reset = () => {
+    cancelledRef.current = false;
     setProcessing(false);
     setStep("input");
     setFailureReference(null);
@@ -100,7 +95,6 @@ export function PaymentModal({ plan, onClose, onSuccess, onStockOut }: PaymentMo
 
       // Business rejections arrive as HTTP 409/404/429/503 with success:false.
       if (!res.ok || !data.success || !data.data?.success || !data.data.data?.paymentReference) {
-        cancelledRef.current = true;
         if (res.status === 503) {
           onStockOut();
           return;
@@ -190,10 +184,12 @@ export function PaymentModal({ plan, onClose, onSuccess, onStockOut }: PaymentMo
       onClick={closeModal}
     >
       <div
+        ref={dialogRef}
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-labelledby="payment-modal-title"
-        className="bg-white w-full max-w-md max-h-[90vh] overflow-y-auto"
+        className="glass-panel w-full max-w-md max-h-[90vh] overflow-y-auto"
         style={{
           borderRadius: "var(--radius-xl)",
           animation: "slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
@@ -245,7 +241,7 @@ export function PaymentModal({ plan, onClose, onSuccess, onStockOut }: PaymentMo
         <div style={{ padding: "24px 24px 28px" }}>
           {/* Selected Plan */}
           <div className="flex items-center gap-3" style={{ padding: "14px 16px", borderRadius: "var(--radius-md)", background: "var(--color-primary-surface)", marginBottom: "24px" }}>
-            <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--color-primary)] text-white flex items-center justify-center text-sm font-bold shrink-0">
+            <div className="w-10 h-10 rounded-[var(--radius-sm)] bg-[var(--color-primary)] text-black flex items-center justify-center text-sm font-bold shrink-0">
               {(plan.name as string)?.charAt(0)}
             </div>
             <div className="flex-1 min-w-0">
@@ -260,11 +256,12 @@ export function PaymentModal({ plan, onClose, onSuccess, onStockOut }: PaymentMo
             Phone Number
           </label>
           <div
-            className="flex items-center overflow-hidden transition-all bg-white"
+            className="flex items-center overflow-hidden transition-all"
             style={{
               border: "1.5px solid var(--color-border)",
               borderRadius: "var(--radius-md)",
               marginBottom: "4px",
+              background: "var(--color-bg)",
             }}
           >
             <div className="flex items-center gap-1.5 shrink-0" style={{ padding: "14px 14px", background: "var(--color-bg-subtle)", borderRight: "1px solid var(--color-border)" }}>
@@ -298,7 +295,7 @@ export function PaymentModal({ plan, onClose, onSuccess, onStockOut }: PaymentMo
           <button
             onClick={failedView ? reset : handlePay}
             disabled={processing}
-            className="w-full font-bold text-white flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:hover:scale-100"
+            className="w-full font-bold text-black flex items-center justify-center gap-2 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:hover:scale-100"
             style={{
               padding: "16px",
               marginTop: "24px",

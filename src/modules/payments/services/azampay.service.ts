@@ -1,5 +1,6 @@
 import axios from "axios";
 import crypto from "crypto";
+import { ServiceError } from "@/lib/errors";
 
 class AzamPayService {
   private authBaseURL = "https://authenticator-sandbox.azampay.co.tz";
@@ -61,6 +62,7 @@ class AzamPayService {
     phoneNumber: string;
     plan: string;
     amount: number;
+    reference: string;
   }): Promise<{
     success: boolean;
     reference: string;
@@ -69,7 +71,6 @@ class AzamPayService {
     data: Record<string, unknown>;
   }> {
     const token = await this.getAccessToken();
-    const reference = this.generateReference();
     const provider = this.getProviderFromPhone(paymentData.phoneNumber);
 
     const response = await axios.post(
@@ -78,7 +79,10 @@ class AzamPayService {
         accountNumber: paymentData.phoneNumber,
         amount: paymentData.amount.toString(),
         currency: "TZS",
-        externalId: reference,
+        // The merchant reference persisted on our side doubles as the
+        // provider's externalId so webhook/status lookups always agree
+        // on a single identifier. No second reference is ever generated.
+        externalId: paymentData.reference,
         provider,
         additionalProperties: {
           property1: paymentData.plan,
@@ -96,7 +100,7 @@ class AzamPayService {
 
     return {
       success: response.data.success,
-      reference,
+      reference: paymentData.reference,
       transactionId: response.data.transactionId,
       message: response.data.message,
       data: response.data,
@@ -125,13 +129,31 @@ class AzamPayService {
     return `CS_${Date.now()}_${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
   }
 
+  /**
+   * Maps a Tanzanian MSISDN to the AzamPay provider identifier.
+   * Prefixes follow the TCRA National Numbering Plan. Unknown networks
+   * throw so a payment is never silently charged to the wrong provider.
+   */
   getProviderFromPhone(phoneNumber: string): string {
     const number = phoneNumber.replace("+255", "").replace(/^0/, "");
-    if (number.startsWith("68") || number.startsWith("69") || number.startsWith("78")) return "Airtel";
-    if (number.startsWith("74") || number.startsWith("75") || number.startsWith("76") || number.startsWith("79")) return "Mpesa";
-    if (number.startsWith("65") || number.startsWith("67") || number.startsWith("71") || number.startsWith("77")) return "Tigo";
-    if (number.startsWith("61")) return "halotel";
-    return "Airtel";
+
+    if (number.startsWith("61") || number.startsWith("62") || number.startsWith("73")) {
+      return "Halotel";
+    }
+    if (number.startsWith("65") || number.startsWith("67") || number.startsWith("71") || number.startsWith("77")) {
+      return "Tigo";
+    }
+    if (number.startsWith("68") || number.startsWith("69") || number.startsWith("78")) {
+      return "Airtel";
+    }
+    if (number.startsWith("74") || number.startsWith("75") || number.startsWith("76") || number.startsWith("79")) {
+      return "Mpesa";
+    }
+
+    throw new ServiceError(
+      "Unable to detect a supported mobile money provider for this number.",
+      400
+    );
   }
 }
 

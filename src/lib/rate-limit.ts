@@ -55,9 +55,27 @@ export function rateLimit(
   };
 }
 
-/** Best-effort client IP extraction behind proxies. */
+/**
+ * Best-effort client IP extraction.
+ *
+ * `X-Forwarded-For` is client-supplied and spoofable, so by default it is
+ * only used as a weak fallback. Deployments that sit behind a reverse
+ * proxy MUST set TRUST_PROXY=true so the proxy-populated header can be
+ * trusted for rate limiting.
+ */
 export function getClientIp(request: Request): string {
+  const trustProxy = process.env.TRUST_PROXY === "true";
   const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
-  return request.headers.get("x-real-ip") || "unknown";
+  const realIp = request.headers.get("x-real-ip");
+
+  if (trustProxy && forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+  if (realIp) {
+    return realIp.trim();
+  }
+  if (forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+  return "unknown";
 }

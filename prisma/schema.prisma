@@ -32,7 +32,6 @@ model Plan {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@index([slug])
   @@index([isActive])
   @@index([sortOrder])
   @@map("plans")
@@ -48,8 +47,10 @@ model Voucher {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
+  @@index([createdAt])
   @@index([isUsed, subscriptionId])
   @@index([price, isUsed])
+  @@index([price, isUsed, subscriptionId])
   @@map("vouchers")
 }
 
@@ -68,8 +69,10 @@ model Payment {
   updatedAt            DateTime      @updatedAt
 
   @@index([phoneNumber])
+  @@index([phoneNumber, status])
   @@index([status])
   @@index([status, createdAt])
+  @@index([azampayTransactionId])
   @@index([subscriptionId])
   @@map("payments")
 }
@@ -94,6 +97,7 @@ model Subscription {
 
   @@index([phoneNumber, status])
   @@index([status, endDate])
+  @@index([voucherCode])
   @@index([plan])
   @@index([createdAt])
   @@map("subscriptions")
@@ -135,5 +139,31 @@ model AuditLog {
   @@index([createdAt])
   @@index([action])
   @@index([actor])
+  @@index([adminId])
   @@map("audit_logs")
+}
+
+/**
+ * Physical network devices operated by the ISP. Inventories are managed
+ * here so the admin network dashboard reflects reality instead of
+ * hardcoded telemetry. Status flips to online only when a heartbeat/
+ * integration reports, otherwise devices show as offline/unknown.
+ */
+model NetworkDevice {
+  id           Int      @id @default(autoincrement())
+  name         String
+  type         String   @default("router") // "router" | "access_point"
+  model        String?
+  ip           String?
+  macAddress   String?  @unique
+  serialNumber String?
+  location     String?
+  firmware     String?
+  isOnline     Boolean  @default(false)
+  lastSeenAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([type])
+  @@map("network_devices")
 }

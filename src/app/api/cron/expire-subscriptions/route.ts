@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { expireSubscriptions } from "@/modules/subscriptions/services/expiry.service";
 import { recordAudit } from "@/lib/audit";
+import { constantTimeEqual } from "@/lib/secrets";
 import { apiSuccess, apiError } from "@/lib/api-response";
 
 async function handle(request: NextRequest) {
@@ -11,7 +12,10 @@ async function handle(request: NextRequest) {
   }
 
   const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${cronSecret}`) {
+  const token = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length).trim()
+    : "";
+  if (!token || !constantTimeEqual(token, cronSecret)) {
     return apiError("Unauthorized", 401);
   }
 

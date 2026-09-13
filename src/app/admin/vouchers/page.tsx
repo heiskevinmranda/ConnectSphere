@@ -287,7 +287,7 @@ export default function VouchersPage() {
 
   const thStyle: React.CSSProperties = {
     padding: "12px 16px",
-    fontSize: "12px",
+    fontSize: "14px",
     fontWeight: 600,
     color: "var(--color-text-muted)",
     textTransform: "uppercase",
@@ -298,7 +298,7 @@ export default function VouchersPage() {
   };
   const tdStyle: React.CSSProperties = {
     padding: "14px 16px",
-    fontSize: "13px",
+    fontSize: "15px",
     borderBottom: "1px solid var(--color-border-light)",
     verticalAlign: "middle",
   };
@@ -308,8 +308,8 @@ export default function VouchersPage() {
     <div>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
         <div>
-          <h1 style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text)", marginBottom: "4px" }}>Vouchers</h1>
-          <p style={{ fontSize: "14px", color: "var(--color-text-muted)" }}>Inventory of hotspot access codes</p>
+          <h1 style={{ fontSize: "24px", fontWeight: 700, color: "var(--color-text)", marginBottom: "4px" }}>Vouchers</h1>
+          <p style={{ fontSize: "15px", color: "var(--color-text-muted)" }}>Inventory of hotspot access codes</p>
         </div>
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
           <Button variant="outline" onClick={() => setUploadOpen(true)} style={{ borderColor: "var(--color-border)", gap: "6px" }}>
@@ -318,7 +318,7 @@ export default function VouchersPage() {
           <Button variant="outline" onClick={handleExport} disabled={exporting} aria-label="Export voucher inventory as CSV" style={{ borderColor: "var(--color-border)", gap: "6px" }}>
             <Download className="h-4 w-4" /> {exporting ? "Exporting..." : "Export CSV"}
           </Button>
-          <Button onClick={() => setGenerateOpen(true)} style={{ background: "var(--color-primary)", color: "#fff", gap: "6px" }}>
+          <Button onClick={() => setGenerateOpen(true)} style={{ background: "var(--color-primary)", color: "#000", gap: "6px" }}>
             <PlusCircle className="h-4 w-4" /> Generate
           </Button>
         </div>
@@ -327,22 +327,22 @@ export default function VouchersPage() {
       <div className="vouchers-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px", marginBottom: "24px" }}>
         <Card>
           <CardContent style={{ padding: "18px 20px" }}>
-            <p style={{ fontSize: "12px", color: "var(--color-text-muted)", marginBottom: "6px" }}>Total Available</p>
-            <p style={{ fontSize: "22px", fontWeight: 700, color: totalAvailable > 0 ? "var(--color-success)" : "var(--color-error)" }}>{totalAvailable.toLocaleString()}</p>
+            <p style={{ fontSize: "14px", color: "var(--color-text-muted)", marginBottom: "6px" }}>Total Available</p>
+            <p style={{ fontSize: "24px", fontWeight: 700, color: totalAvailable > 0 ? "var(--color-success)" : "var(--color-error)" }}>{totalAvailable.toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent style={{ padding: "18px 20px" }}>
-            <p style={{ fontSize: "12px", color: "var(--color-text-muted)", marginBottom: "6px" }}>Redeemed</p>
-            <p style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text)" }}>{totalUsed.toLocaleString()}</p>
+            <p style={{ fontSize: "14px", color: "var(--color-text-muted)", marginBottom: "6px" }}>Redeemed</p>
+            <p style={{ fontSize: "24px", fontWeight: 700, color: "var(--color-text)" }}>{totalUsed.toLocaleString()}</p>
           </CardContent>
         </Card>
         {tiers.slice(0, 2).map((t) => (
           <Card key={t.price}>
             <CardContent style={{ padding: "18px 20px" }}>
-              <p style={{ fontSize: "12px", color: "var(--color-text-muted)", marginBottom: "6px" }}>TSh {t.price.toLocaleString()} stock</p>
-              <p style={{ fontSize: "22px", fontWeight: 700, color: t.available === 0 ? "var(--color-error)" : t.available <= 10 ? "var(--color-warning)" : "var(--color-success)" }}>{t.available.toLocaleString()}</p>
-              <p style={{ fontSize: "11px", color: "var(--color-text-muted)" }}>{t.available === 0 ? "Out of stock" : t.available <= 10 ? "Low stock" : `${t.used} redeemed all-time`}</p>
+              <p style={{ fontSize: "14px", color: "var(--color-text-muted)", marginBottom: "6px" }}>TSh {t.price.toLocaleString()} stock</p>
+              <p style={{ fontSize: "24px", fontWeight: 700, color: t.available === 0 ? "var(--color-error)" : t.available <= 10 ? "var(--color-warning)" : "var(--color-success)" }}>{t.available.toLocaleString()}</p>
+              <p style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>{t.available === 0 ? "Out of stock" : t.available <= 10 ? "Low stock" : `${t.used} redeemed all-time`}</p>
             </CardContent>
           </Card>
         ))}
@@ -384,7 +384,7 @@ export default function VouchersPage() {
             <Button variant="ghost" size="icon" onClick={reload} disabled={loading} aria-label="Refresh vouchers">
               <RefreshCw className="h-4 w-4" style={{ animation: loading ? "spin 1s linear infinite" : undefined }} />
             </Button>
-            <span style={{ fontSize: "13px", color: "var(--color-text-muted)", whiteSpace: "nowrap" }} aria-live="polite">
+            <span style={{ fontSize: "15px", color: "var(--color-text-muted)", whiteSpace: "nowrap" }} aria-live="polite">
               {total} voucher{total !== 1 ? "s" : ""}
             </span>
           </div>
@@ -395,9 +395,9 @@ export default function VouchersPage() {
         <Card>
           <CardContent style={{ padding: "48px 20px", textAlign: "center" }}>
             <AlertCircle className="h-10 w-10" style={{ margin: "0 auto 16px", color: "var(--color-error)" }} />
-            <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>Failed to load vouchers</p>
-            <p style={{ fontSize: "13px", color: "var(--color-text-muted)", marginBottom: "20px" }}>{error}</p>
-            <Button onClick={handleRetry} style={{ background: "var(--color-primary)", color: "#fff" }}>
+            <p style={{ fontSize: "16px", fontWeight: 600, color: "var(--color-text)", marginBottom: "4px" }}>Failed to load vouchers</p>
+            <p style={{ fontSize: "15px", color: "var(--color-text-muted)", marginBottom: "20px" }}>{error}</p>
+            <Button onClick={handleRetry} style={{ background: "var(--color-primary)", color: "#000" }}>
               <RefreshCw className="h-4 w-4" style={{ marginRight: "6px" }} /> Retry
             </Button>
           </CardContent>
@@ -410,8 +410,8 @@ export default function VouchersPage() {
         <Card>
           <CardContent style={{ padding: "64px 20px", textAlign: "center" }}>
             <Ticket className="h-12 w-12" style={{ margin: "0 auto 16px", color: "var(--color-text-muted)", opacity: 0.3 }} />
-            <p style={{ fontSize: "15px", fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: "4px" }}>No vouchers found</p>
-            <p style={{ fontSize: "13px", color: "var(--color-text-muted)", marginBottom: "16px" }}>Generate new codes or adjust your filters</p>
+            <p style={{ fontSize: "16px", fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: "4px" }}>No vouchers found</p>
+            <p style={{ fontSize: "15px", color: "var(--color-text-muted)", marginBottom: "16px" }}>Generate new codes or adjust your filters</p>
             <Button onClick={() => setGenerateOpen(true)} variant="outline" style={{ borderColor: "var(--color-border)", gap: "6px" }}>
               <PlusCircle className="h-4 w-4" /> Generate vouchers
             </Button>
@@ -437,13 +437,13 @@ export default function VouchersPage() {
                   return (
                     <TableRow key={v.id} style={{ background: idx % 2 === 0 ? "transparent" : "var(--color-bg-subtle)" }}>
                       <TableCell style={isLast ? lastTd : tdStyle}>
-                        <span style={{ fontFamily: "'SF Mono', 'Consolas', monospace", fontSize: "13px", fontWeight: 500, letterSpacing: "0.08em" }}>{v.code}</span>
+                        <span style={{ fontFamily: "'SF Mono', 'Consolas', monospace", fontSize: "15px", fontWeight: 500, letterSpacing: "0.08em" }}>{v.code}</span>
                       </TableCell>
                       <TableCell style={{ ...(isLast ? lastTd : tdStyle), fontWeight: 600 }}>
                         TSh {v.price.toLocaleString()}
                       </TableCell>
                       <TableCell style={isLast ? lastTd : tdStyle}>
-                        <Badge style={v.isUsed ? { background: "var(--color-bg-subtle)", color: "var(--color-text-muted)", fontSize: "11px", fontWeight: 600, padding: "3px 10px" } : { background: "var(--color-success-surface)", color: "var(--color-success)", fontSize: "11px", fontWeight: 600, padding: "3px 10px" }}>
+                        <Badge style={v.isUsed ? { background: "var(--color-bg-subtle)", color: "var(--color-text-muted)", fontSize: "12px", fontWeight: 600, padding: "3px 10px" } : { background: "var(--color-success-surface)", color: "var(--color-success)", fontSize: "12px", fontWeight: 600, padding: "3px 10px" }}>
                           {v.isUsed ? "Used" : "Available"}
                         </Badge>
                       </TableCell>
@@ -486,7 +486,7 @@ export default function VouchersPage() {
 
       {!loading && !error && totalPages > 1 && (
         <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "16px", padding: "12px 0" }} aria-label="Pagination">
-          <p style={{ fontSize: "13px", color: "var(--color-text-muted)" }}>Page {page} of {totalPages}</p>
+          <p style={{ fontSize: "15px", color: "var(--color-text-muted)" }}>Page {page} of {totalPages}</p>
           <div style={{ display: "flex", gap: "8px" }}>
             <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} aria-label="Previous page" style={{ borderColor: "var(--color-border)", gap: "4px" }}>
               <ChevronLeft className="h-4 w-4" /> Previous
@@ -526,11 +526,11 @@ export default function VouchersPage() {
                 value={uploadText}
                 onChange={(e) => setUploadText(e.target.value)}
                 rows={8}
-                style={{ marginTop: "6px", fontFamily: "'SF Mono', 'Consolas', monospace", fontSize: "13px" }}
+                style={{ marginTop: "6px", fontFamily: "'SF Mono', 'Consolas', monospace", fontSize: "15px" }}
               />
             </div>
             {uploadText.trim() && (
-              <div style={{ fontSize: "12px", display: "flex", gap: "14px", flexWrap: "wrap" }} aria-live="polite">
+              <div style={{ fontSize: "14px", display: "flex", gap: "14px", flexWrap: "wrap" }} aria-live="polite">
                 <span style={{ color: "var(--color-success)", fontWeight: 600 }}>{parsedUpload.valid.length} valid</span>
                 {parsedUpload.invalid.length > 0 && (
                   <span style={{ color: "var(--color-error)" }}>{parsedUpload.invalid.length} invalid</span>
@@ -546,7 +546,7 @@ export default function VouchersPage() {
               type="button"
               onClick={() => setUploadOpen(false)}
               disabled={uploading}
-              style={{ padding: "9px 20px", border: "1px solid var(--color-border)", borderRadius: "8px", fontSize: "13px", fontWeight: 500, background: "var(--color-bg-elevated)", color: "var(--color-text-secondary)", cursor: "pointer" }}
+              style={{ padding: "9px 20px", border: "1px solid var(--color-border)", borderRadius: "8px", fontSize: "15px", fontWeight: 500, background: "var(--color-bg-elevated)", color: "var(--color-text-secondary)", cursor: "pointer" }}
             >
               Cancel
             </button>
@@ -554,7 +554,7 @@ export default function VouchersPage() {
               type="button"
               onClick={handleUpload}
               disabled={uploading || !uploadPrice || parsedUpload.valid.length === 0}
-              style={{ padding: "9px 20px", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 600, background: "var(--color-primary)", color: "#fff", cursor: uploading || !uploadPrice || parsedUpload.valid.length === 0 ? "not-allowed" : "pointer", opacity: uploading || !uploadPrice || parsedUpload.valid.length === 0 ? 0.5 : 1 }}
+              style={{ padding: "10px 24px", border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 600, background: "var(--color-primary)", color: "#000", cursor: uploading || !uploadPrice || parsedUpload.valid.length === 0 ? "not-allowed" : "pointer", opacity: uploading || !uploadPrice || parsedUpload.valid.length === 0 ? 0.5 : 1 }}
             >
               {uploading ? "Uploading..." : `Upload ${parsedUpload.valid.length || ""} voucher${parsedUpload.valid.length !== 1 ? "s" : ""}`}
             </button>
@@ -601,7 +601,7 @@ export default function VouchersPage() {
               type="button"
               onClick={() => setGenerateOpen(false)}
               disabled={generating}
-              style={{ padding: "9px 20px", border: "1px solid var(--color-border)", borderRadius: "8px", fontSize: "13px", fontWeight: 500, background: "var(--color-bg-elevated)", color: "var(--color-text-secondary)", cursor: "pointer" }}
+              style={{ padding: "9px 20px", border: "1px solid var(--color-border)", borderRadius: "8px", fontSize: "15px", fontWeight: 500, background: "var(--color-bg-elevated)", color: "var(--color-text-secondary)", cursor: "pointer" }}
             >
               Cancel
             </button>
@@ -609,7 +609,7 @@ export default function VouchersPage() {
               type="button"
               onClick={handleGenerate}
               disabled={generating || !genPrice}
-              style={{ padding: "9px 20px", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 600, background: "var(--color-primary)", color: "#fff", cursor: generating || !genPrice ? "not-allowed" : "pointer", opacity: generating || !genPrice ? 0.5 : 1 }}
+              style={{ padding: "10px 24px", border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 600, background: "var(--color-primary)", color: "#000", cursor: generating || !genPrice ? "not-allowed" : "pointer", opacity: generating || !genPrice ? 0.5 : 1 }}
             >
               {generating ? "Generating..." : "Generate"}
             </button>

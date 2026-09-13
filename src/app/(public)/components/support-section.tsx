@@ -3,10 +3,10 @@ import { Headphones } from "lucide-react";
 export function SupportSection() {
   return (
     <section
+      id="support"
       style={{
-        padding: "32px 0",
-        maxWidth: "1200px",
-        margin: "0 auto",
+        padding: "64px 0",
+        width: "100%",
       }}
     >
       <div
@@ -45,6 +45,8 @@ export function SupportSection() {
               style={{
                 fontSize: "16px",
                 fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
                 color: "var(--color-text)",
                 marginBottom: "4px",
               }}
@@ -59,13 +61,13 @@ export function SupportSection() {
               }}
             >
               Contact our support team at{" "}
-              <strong style={{ color: "var(--color-primary)" }}>
+              <a href="tel:+255784425661" style={{ color: "#ffffff", fontWeight: 700, textDecoration: "underline", textUnderlineOffset: "3px" }}>
                 +255 784 425 661
-              </strong>{" "}
+              </a>{" "}
               or email{" "}
-              <strong style={{ color: "var(--color-primary)" }}>
+              <a href="mailto:support@connectsphere.co.tz" style={{ color: "#ffffff", fontWeight: 700, textDecoration: "underline", textUnderlineOffset: "3px" }}>
                 support@connectsphere.co.tz
-              </strong>
+              </a>
             </p>
           </div>
         </div>

@@ -1,42 +1,52 @@
 import { prisma } from "@/lib/prisma";
 
-const ROUTER_MAC = process.env.ROUTER_MAC_ADDRESS || "00:1A:2B:3C:4D:5E";
-const ROUTER_SERIAL = process.env.ROUTER_SERIAL_NUMBER || "1234567890";
-const ROUTER_IMEI = process.env.ROUTER_IMEI || "123456789012345";
+/**
+ * Router identity is required to grant hardware-gated access. Without it
+ * the portal fails closed: no device can claim access, so ambient
+ * "anyone knows the MAC" fallbacks are never trusted in production.
+ */
+function getRouterConfig() {
+  const mac = process.env.ROUTER_MAC_ADDRESS;
+  const serial = process.env.ROUTER_SERIAL_NUMBER;
+  const imei = process.env.ROUTER_IMEI;
+  if (!mac || !serial || !imei) return null;
+  return { mac, serial, imei };
+}
 
 export const routerAccessService = {
   async activateUser(phoneNumber: string, plan: string) {
-    const existing = await prisma.routerAccess.findUnique({
+    const router = getRouterConfig();
+    const previous = await prisma.routerAccess.findUnique({
       where: { phoneNumber },
     });
-
-    if (existing) {
-      await prisma.routerAccess.update({
+    await prisma.$transaction(async (tx) => {
+      await tx.routerAccess.upsert({
         where: { phoneNumber },
-        data: {
+        create: {
+          phoneNumber,
+          routerMacAddress: router?.mac,
+          routerSerialNumber: router?.serial,
+          routerImei: router?.imei,
+          plan,
+          isActive: true,
+          activatedAt: new Date(),
+        },
+        update: {
           isActive: true,
           plan,
           activatedAt: new Date(),
           deactivatedAt: null,
+          routerMacAddress: router?.mac ?? previous?.routerMacAddress,
+          routerSerialNumber:
+            router?.serial ?? previous?.routerSerialNumber,
+          routerImei: router?.imei ?? previous?.routerImei,
         },
       });
-    } else {
-      await prisma.routerAccess.create({
-        data: {
-          phoneNumber,
-          routerMacAddress: ROUTER_MAC,
-          routerSerialNumber: ROUTER_SERIAL,
-          routerImei: ROUTER_IMEI,
-          plan,
-          isActive: true,
-          activatedAt: new Date(),
-        },
-      });
-    }
+    });
 
     return {
       success: true,
-      message: `User ${phoneNumber} activated on router ${ROUTER_MAC}`,
+      message: `User ${phoneNumber} activated on router ${router?.mac ?? "unconfigured"}`,
     };
   },
 
@@ -57,11 +67,20 @@ export const routerAccessService = {
 
     return {
       success: true,
-      message: `User ${phoneNumber} deactivated on router ${ROUTER_MAC}`,
+      message: `User ${phoneNumber} deactivated`,
     };
   },
 
   async checkAccess(phoneNumber: string, macAddress?: string, imei?: string) {
+    const router = getRouterConfig();
+    if (!router) {
+      return {
+        success: false,
+        message:
+          "Router identity is not configured. Contact the operator.",
+      };
+    }
+
     const subscription = await prisma.subscription.findFirst({
       where: {
         phoneNumber,
@@ -82,10 +101,10 @@ export const routerAccessService = {
       return { success: false, message: "Router access not activated" };
     }
 
-    if (macAddress && macAddress !== ROUTER_MAC) {
+    if (macAddress && macAddress !== router.mac) {
       return { success: false, message: "Invalid router MAC address" };
     }
-    if (imei && imei !== ROUTER_IMEI) {
+    if (imei && imei !== router.imei) {
       return { success: false, message: "Invalid router IMEI" };
     }
 

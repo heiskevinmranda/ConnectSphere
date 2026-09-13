@@ -162,11 +162,23 @@ export const paymentsService = {
       },
     });
 
+    // Collapse any concurrent duplicates into this payment so a customer
+    // never ends up with two pending charges for the same plan.
+    await prisma.payment.deleteMany({
+      where: {
+        phoneNumber,
+        plan: plan.slug,
+        status: "pending",
+        id: { not: payment.id },
+      },
+    });
+
     try {
       const azampayResponse = await azampayService.initiatePayment({
         phoneNumber,
         plan: plan.name,
         amount: plan.price,
+        reference: payment.paymentReference,
       });
 
       await prisma.payment.update({
@@ -187,28 +199,46 @@ export const paymentsService = {
         },
       };
     } catch (error) {
-      // AzamPay unreachable or not configured: fall back to simulation so
-      // the flow remains testable. Simulation is only completable in dev.
-      console.warn(
-        "[payments] AzamPay unavailable, using simulation mode:",
+      // In development the provider may be unreachable or unconfigured:
+      // fall back to simulation mode so the flow stays testable. In
+      // production a failed checkout must never be reported as success,
+      // otherwise customers believe they were charged when they were not.
+      const isDev = process.env.NODE_ENV !== "production";
+
+      if (isDev) {
+        console.warn(
+          "[payments] AzamPay unavailable, using simulation mode:",
+          error instanceof Error ? error.message : error
+        );
+
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: {
+            azampayTransactionId: `SIM_${payment.paymentReference}`,
+            azampayResponse: JSON.stringify({ simulationMode: true }),
+          },
+        });
+
+        return {
+          success: true as const,
+          message: "Payment initiated successfully (simulation mode)",
+          data: {
+            paymentReference: payment.paymentReference,
+            simulationMode: true,
+          },
+        };
+      }
+
+      console.error(
+        "[payments] AzamPay checkout failed in production:",
         error instanceof Error ? error.message : error
       );
-
-      await prisma.payment.update({
-        where: { id: payment.id },
-        data: {
-          azampayTransactionId: `SIM_${payment.paymentReference}`,
-          azampayResponse: JSON.stringify({ simulationMode: true }),
-        },
-      });
-
+      await markPaymentFailed(payment.id, "provider_unavailable");
       return {
-        success: true as const,
-        message: "Payment initiated successfully (simulation mode)",
-        data: {
-          paymentReference: payment.paymentReference,
-          simulationMode: true,
-        },
+        success: false as const,
+        code: "PROVIDER_UNAVAILABLE" as const,
+        message:
+          "We could not start your payment right now. Please try again in a moment.",
       };
     }
   },
@@ -228,8 +258,11 @@ export const paymentsService = {
       !payment.azampayTransactionId.startsWith("SIM_")
     ) {
       try {
+        // The provider's statuscheck identifies transactions by the
+        // merchant reference (the externalId we sent at checkout), not
+        // by the provider-assigned transaction id.
         const azampayStatus = await azampayService.checkPaymentStatus(
-          payment.azampayTransactionId
+          payment.paymentReference
         );
         if (azampayStatus.success && azampayStatus.status === "SUCCESSFUL") {
           await processSuccessfulPayment(payment.id);
@@ -343,14 +376,34 @@ async function processSuccessfulPayment(paymentId: number): Promise<boolean> {
     });
   } catch (error) {
     if (error instanceof Error && error.message === "NO_VOUCHER_STOCK") {
+      // The customer WAS charged by the provider but we cannot fulfil
+      // the order. Mark the payment failed and surface a refund request
+      // in the logs so an operator can reconcile it with the provider.
+      await prisma.payment.updateMany({
+        where: { id: payment!.id, status: "pending" },
+        data: { status: "failed" },
+      });
       await recordAudit({
-        actor: "system",
-        actorType: "system",
+        actor: payment!.phoneNumber,
+        actorType: "customer",
         action: "payment.completed_no_stock",
-        target: payment.paymentReference,
-        details: { paymentId: payment.id, plan: payment.plan, amount: payment.amount },
+        target: payment!.paymentReference,
+        details: {
+          paymentId: payment!.id,
+          plan: payment!.plan,
+          amount: payment!.amount,
+          requiresRefund: true,
+        },
         status: "failure",
       });
+      console.error(
+        `[payments] REFUND REQUIRED: customer ${payment!.phoneNumber} was charged ` +
+          `${payment!.amount} TZS (payment #${payment!.id}, ` +
+          `${payment!.paymentReference}) but no voucher was available. ` +
+          `Reconcile and refund via the AzamPay portal.`
+      );
+      invalidatePaymentCaches();
+      return false;
     }
     throw error;
   }
@@ -413,6 +466,8 @@ async function markPaymentFailed(paymentId: number, reason: string) {
 function invalidatePaymentCaches() {
   cache.delete("dashboard-stats");
   cache.delete("voucher-analytics");
+  // Provisioning a subscription changes the subscription analytics too.
+  cache.delete("subscription-analytics");
   for (const key of cache.keys()) {
     if (key.startsWith("voucher-availability")) cache.delete(key);
   }

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { customersService } from "@/modules/customers/services/customers.service";
 import { getAdminContext, recordAudit, getAdminId } from "@/lib/audit";
+import { canManageSystem } from "@/lib/auth";
 import { getClientIp } from "@/lib/rate-limit";
 import { isServiceError } from "@/lib/errors";
 import {
@@ -8,6 +9,7 @@ import {
   apiError,
   apiNotFound,
   apiBadRequest,
+  apiForbidden,
 } from "@/lib/api-response";
 
 /** Cancels an active subscription and revokes its router access. */
@@ -17,6 +19,13 @@ export async function POST(
 ) {
   const ctx = getAdminContext(request.headers);
   if (!ctx) return apiError("Missing admin context", 401);
+
+  // Cancelling terminates paid service the operator already sold.
+  if (!canManageSystem(ctx.role)) {
+    return apiForbidden(
+      "Only super administrators can cancel subscriptions."
+    );
+  }
 
   try {
     const { id } = await params;

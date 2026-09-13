@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckCircle2 } from "lucide-react";
+import { useModalA11y } from "@/lib/use-modal-a11y";
 
 interface SuccessModalProps {
   data: Record<string, unknown>;
@@ -10,6 +11,7 @@ interface SuccessModalProps {
 export function SuccessModal({ data, onClose }: SuccessModalProps) {
   const sub = (data.subscription || data) as Record<string, unknown>;
   const voucherCode = sub.voucherCode as string;
+  const dialogRef = useModalA11y(onClose);
 
   return (
     <div
@@ -18,10 +20,12 @@ export function SuccessModal({ data, onClose }: SuccessModalProps) {
       onClick={onClose}
     >
       <div
+        ref={dialogRef}
         role="dialog"
+        tabIndex={-1}
         aria-modal="true"
         aria-labelledby="success-modal-title"
-        className="bg-white w-full max-w-md"
+        className="glass-panel w-full max-w-md"
         style={{ borderRadius: "var(--radius-xl) var(--radius-xl) 0 0", animation: "slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -65,7 +69,7 @@ export function SuccessModal({ data, onClose }: SuccessModalProps) {
 
           <button
             onClick={onClose}
-            className="w-full font-semibold text-white flex items-center justify-center gap-2 transition-all"
+            className="w-full font-semibold text-black flex items-center justify-center gap-2 transition-all"
             style={{ padding: "14px", background: "var(--color-primary)", borderRadius: "var(--radius-md)", fontSize: "0.95rem" }}
           >
             Got it!

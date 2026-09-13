@@ -1,56 +1,29 @@
-export interface NetworkRouter {
-  id: string;
-  name: string;
-  model: string;
-  ip: string;
-  mac: string;
-  serialNumber: string;
-  status: "online" | "offline";
-  uptime: string;
-  cpu: number;
-  memory: number;
-  memoryTotal: string;
-  memoryUsed: string;
-  firmware: string;
-  clients: number;
-  maxClients: number;
-  wanStatus: string;
-  lanStatus: string;
-  totalDownload: number;
-  totalUpload: number;
-  totalTrafficToday: string;
-  interfaces?: NetworkInterface[];
+export interface NetworkDeviceStatus {
+  total: number;
+  online: number;
+  offline: number;
 }
 
-export interface NetworkInterface {
-  name: string;
-  type: "WAN" | "LAN";
-  status: string;
-  speed: string;
-  ip: string;
-  download: number;
-  upload: number;
-  rxBytes: string;
-  txBytes: string;
+export interface VoucherStock {
+  price: number;
+  available: number;
 }
 
-export interface AccessPoint {
-  id: string;
-  name: string;
-  model: string;
-  ip: string;
-  mac: string;
-  status: "online" | "offline";
-  clients: number;
-  maxClients: number;
-  ssids: string[];
-  channel: number;
-  frequency: string;
-  band: string;
-  signal: number;
-  transmitPower: string;
-  uptime: string;
-  firmware: string;
+/**
+ * Network overview derived entirely from database state so the admin
+ * dashboard never presents fabricated telemetry. Traffic/bandwidth
+ * figures are intentionally absent until a real router integration
+ * reports them.
+ */
+export interface NetworkOverview {
+  routers: NetworkDeviceStatus;
+  accessPoints: NetworkDeviceStatus;
+  activeSubscriptions: number;
+  vouchersAvailable: number;
+  vouchersByTier: VoucherStock[];
+  subscriptionsToday: number;
+  activeAlerts: number;
+  telemetryConnected: boolean;
 }
 
 export interface NetworkAlert {
@@ -62,54 +35,16 @@ export interface NetworkAlert {
   timestamp: string;
 }
 
-export interface NetworkOverview {
-  routers: { total: number; online: number; offline: number };
-  accessPoints: { total: number; online: number; offline: number };
-  clients: { total: number; maxCapacity: number };
-  bandwidth: {
-    download: number;
-    upload: number;
-    capacityDown: number;
-    capacityUp: number;
-    utilizationDown: number;
-    utilizationUp: number;
-  };
-  activeAlerts: number;
-  totalTrafficToday: string;
-}
-
-export interface BandwidthData {
-  total: {
-    download: number;
-    upload: number;
-    capacityDown: number;
-    capacityUp: number;
-    utilizationDown: number;
-    utilizationUp: number;
-  };
-  byRouter: Array<{
-    id: string;
-    name: string;
-    download: number;
-    upload: number;
-    utilizationDown: number;
-    utilizationUp: number;
-  }>;
-  traffic: {
-    today: string;
-    peakHour: string;
-    avgUtilization: number;
-  };
-}
-
-export interface ConnectedClient {
-  id: string;
+export interface NetworkDeviceItem {
+  id: number;
   name: string;
-  ip: string;
-  mac: string;
-  type: "wired" | "wireless";
-  upload: string;
-  download: string;
-  dataUsage: string;
-  connected: string;
+  type: "router" | "access_point";
+  model: string | null;
+  ip: string | null;
+  macAddress: string | null;
+  serialNumber: string | null;
+  location: string | null;
+  firmware: string | null;
+  status: "online" | "offline";
+  lastSeenAt: string | null;
 }

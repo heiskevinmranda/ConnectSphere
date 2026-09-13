@@ -131,7 +131,7 @@ export function ConfirmDialog({
               fontSize: "13px",
               fontWeight: 600,
               background: v.btnBg,
-              color: "#fff",
+              color: "#000",
               cursor: "pointer",
               opacity: loading ? 0.6 : 1,
               transition: "background 150ms ease",
